@@ -112,7 +112,7 @@ class PreprocessClass:
             df["Repetitions"].fillna(df["Set Duration (s)"], inplace=True)
 
         df_compact = df.drop(redundant_columns, axis=1, errors="ignore")
-        print(f"Removed columns {redundant_columns}")
+        # print(f"Removed columns {redundant_columns}")
         return df_compact
 
     @staticmethod
@@ -376,6 +376,21 @@ class PreprocessClass:
         df["Workout Name"] = df["Workout Name"].astype("category")
         return df
 
+    @staticmethod
+    def add_other_stuff(df: pd.DataFrame) -> pd.DataFrame:
+        weekday_map = {
+            0: "Monday",
+            1: "Tuesday",
+            2: "Wednesday",
+            3: "Thursday",
+            4: "Friday",
+            5: "Saturday",
+            6: "Sunday",
+        }
+
+        df["Weekday"] = df["Time"].dt.weekday.map(weekday_map)
+        return df
+
     def main(self):
         # Data file of Progression app (android)
         fixed_progression_csv = self.fix_progression_csv(self.progression_path)
@@ -415,10 +430,12 @@ class PreprocessClass:
 
         df = self.fix_dtypes(df)
 
+        df = self.add_other_stuff(df)
+
         return df
 
 
-progression_path = "2023-04-27 18 58 40.csv"
-gymbook_path = "GymBook-Logs-2023-04-08.csv"
-preprocess = PreprocessClass(gymbook_path, progression_path)
-df = preprocess.main()
+# progression_path = "2023-04-27 18 58 40.csv"
+# gymbook_path = "GymBook-Logs-2023-04-08.csv"
+# preprocess = PreprocessClass(gymbook_path, progression_path)
+# df = preprocess.main()
