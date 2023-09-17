@@ -10,10 +10,12 @@ from preprocessing import PreprocessClass
 
 app = Dash(__name__)
 
-progression_path = r"data\2023-04-27 18 58 40.csv"
+progression_path = r"data\2023-09-16 17 16 38.csv"
 gymbook_path = r"data\GymBook-Logs-2023-04-08.csv"
-preprocess = PreprocessClass(gymbook_path, progression_path)
-df = preprocess.main()
+weight1_path = r"data\weight.csv"
+weight2_path = r"data\weight_Felix_1694877519.csv"
+preprocess = PreprocessClass(gymbook_path, progression_path, weight1_path, weight2_path)
+df, df_weight = preprocess.main()
 
 
 # All sets with comments
@@ -63,12 +65,14 @@ app.layout = html.Div(
                         label="Timeframe",
                         description="Limit plots to a certain time frame.",
                         minDate=min(df["Time"]),
+                        maxDate=max(df["Time"]),
                     ),
                     span=2,
                 ),
-                dmc.Col(dmc.Paper(dcc.Graph(id="graph-weight-by-exercise"), shadow="xs"), span=6),
-                dmc.Col(dmc.Paper(dcc.Graph(id="graph-volumne-by-exercise"), shadow="xs"), span=6),
+                dmc.Col(dmc.Paper(dcc.Graph(id="graph-weight-by-exercise"), shadow="xs"), span=12),
+                dmc.Col(dmc.Paper(dcc.Graph(id="graph-volume-by-exercise"), shadow="xs"), span=6),
                 dmc.Col(dmc.Paper(dcc.Graph(id="graph-1rm-by-exercise"), shadow="xs"), span=6),
+                dmc.Col(dmc.Paper(dcc.Graph(id="graph-day-by-exercise"), shadow="xs"), span=6),
                 dmc.Col(dmc.Paper(dcc.Graph(id="graph-days-trained-by-exercise"), shadow="xs"), span=6),
             ]
         ),
@@ -79,14 +83,20 @@ app.layout = html.Div(
                 y="Exercise Name",
                 z="Weight",
                 color="Repetitions",
+                size="Volume",
             )
         ),
-        dcc.Graph(id="graph-day-by-exercise"),
-        # dcc.Graph(
-        #     figure=px.density_heatmap(
-        #         df, x="Weekday", y=df["Time"].dt.hour, category_orders={"Weekday": list(weekday_map.values())}
-        #     )
-        # ),
+        dcc.Graph(
+            id="graph-bodyweight",
+            figure=px.scatter(
+                df_weight,
+                x="Time",
+                y="Weight",
+                title="Bodyweight",
+                trendline="lowess",
+                trendline_options=dict(frac=0.1),
+            ),
+        ),
         # dash_table.DataTable(df_comments.to_dict("records")),
     ]
 )
@@ -103,14 +113,15 @@ def filter_exercise_by_musclegroup(muscle_group):
 
 @callback(
     Output("graph-weight-by-exercise", "figure"),
-    Output("graph-volumne-by-exercise", "figure"),
+    Output("graph-volume-by-exercise", "figure"),
     Output("graph-1rm-by-exercise", "figure"),
+    Output("graph-day-by-exercise", "figure"),
     Output("graph-days-trained-by-exercise", "figure"),
     Input("dropdown-exercise", "value"),
     Input("date-range-picker", "value"),
 )
-def graph_by_exercise(exercise: str, date_range):
-    """Plot the weight and volumne of an exercise over time"""
+def graph_by_exercise(exercise: str, date_range: list[str]):
+    """Different exercise specific plots over time. Such as weight, volume or 1rm."""
     df_filtered_exercise = df[df["Exercise Name"] == exercise]
     if date_range:
         # Convert date range to valid format
@@ -119,46 +130,29 @@ def graph_by_exercise(exercise: str, date_range):
         df_filtered_exercise = df_filtered_exercise[
             (df_filtered_exercise["Time"] >= start_date) & (df_filtered_exercise["Time"] <= end_date)
         ]
+
     if df_filtered_exercise.empty:
-        if not exercise:
-            error_message = "Select an exercise to visualize data"
-        else:
-            error_message = "No data found for the selected time frame"
-        empty_message = {
-            "layout": {
-                "xaxis": {"visible": False},
-                "yaxis": {"visible": False},
-                "annotations": [
-                    {
-                        "text": error_message,
-                        "xref": "paper",
-                        "yref": "paper",
-                        "showarrow": False,
-                        "font": {"size": 28},
-                    }
-                ],
-            }
-        }
-        return (empty_message,) * 4
+        empty_message = plot_placeholder(exercise)
+        return (empty_message,) * 5
 
-    figure_weight = px.scatter(df_filtered_exercise, x="Time", y="Weight", color="Repetitions")
-    figure_weight.update_layout(title="Weight Progression", yaxis_title="Weight [kg]")
-
-    grouped_by_date = df_filtered_exercise.groupby(df_filtered_exercise["Time"].dt.date)
-
-    def calculate_volumne(group):
-        return (group["Repetitions"] * group["Weight"]).sum()
-
-    volumne = grouped_by_date.apply(calculate_volumne)
-    # TODO Fix wide ValueError
-    figure_volumne = px.scatter(x=volumne.index, y=volumne)
-    figure_volumne.update_layout(
-        title="Volumne (Weight * Reps) Progression", xaxis_title="Time", yaxis_title="Volumne [kg]"
-    )
-
-    one_rm = df_filtered_exercise["Weight"] / (1.0278 - (0.0278) * df_filtered_exercise["Repetitions"])
-    figure_1rm = px.scatter(
+    # Plot - Weight over time
+    figure_weight = px.scatter(
         df_filtered_exercise,
+        x="Time",
+        y="Weight",
+        color="Repetitions",
+        size="Volume",
+        title="Weight Progression",
+    )
+    figure_weight.update_layout(yaxis_title="Weight [kg]")
+
+    # Plot - Estimated 1RM over time
+    # 1RM Formula is only accurate up to about 12 reps
+    max_reps = 12
+    df_filtered_exercise_reps = df_filtered_exercise[df_filtered_exercise["Repetitions"] < max_reps]
+    one_rm = df_filtered_exercise_reps["Weight"] / (1.0278 - (0.0278) * df_filtered_exercise_reps["Repetitions"])
+    figure_1rm = px.scatter(
+        df_filtered_exercise_reps,
         x="Time",
         y=one_rm,
         color="Repetitions",
@@ -166,18 +160,16 @@ def graph_by_exercise(exercise: str, date_range):
     )
     figure_1rm.update_layout(yaxis_title="Weight [kg]")
 
-    weekdays = pd.Categorical(
-        grouped_by_date["Weekday"].first(),
-        categories=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+    # Plot - Volume per training day over time
+    grouped_by_date = df_filtered_exercise.groupby(df_filtered_exercise["Time"].dt.date)
+    volume = grouped_by_date.apply(lambda x: (x["Repetitions"] * x["Weight"]).sum())
+    n_sets = grouped_by_date.apply(lambda x: x["Set Order"].count())
+    figure_volume = px.scatter(
+        x=volume.index, y=volume, color=n_sets, title="Volume (Weight * Reps) Progression per Training Day"
     )
-    figure_weekday = px.histogram(weekdays.sort_values(), title="Training Days")
-    figure_weekday.update_layout(xaxis_title="Weekday", yaxis_title="Training Days", showlegend=False)
+    figure_volume.update_layout(xaxis_title="Time", yaxis_title="Volume [kg]", coloraxis_colorbar_title_text="Sets")
 
-    return figure_weight, figure_volumne, figure_1rm, figure_weekday
-
-
-@callback(Output("graph-day-by-exercise", "figure"), Input("dropdown-exercise", "value"))
-def show(exercise: str):
+    # Plot - Most trained day and time
     weekday_map = {
         0: "Monday",
         1: "Tuesday",
@@ -188,17 +180,48 @@ def show(exercise: str):
         6: "Sunday",
     }
 
-    df_filtered_exercise = df[df["Exercise Name"] == exercise]
-    figure = px.density_heatmap(
+    figure_time_heatmap = px.density_heatmap(
         df_filtered_exercise,
         x="Weekday",
         y=df_filtered_exercise["Time"].dt.hour,
         category_orders={"Weekday": list(weekday_map.values())},
+        title="Favorite Set Time",
     )
-    return figure
+    figure_time_heatmap.update_layout(yaxis_title="Hour")
+
+    # Plot - Most trained day
+    weekdays = pd.Categorical(
+        grouped_by_date["Weekday"].first(),
+        categories=list(weekday_map.values()),
+    )
+    figure_weekday = px.histogram(weekdays.sort_values(), title="Training Days")
+    figure_weekday.update_layout(xaxis_title="Weekday", yaxis_title="Training Days", showlegend=False)
+
+    return figure_weight, figure_volume, figure_1rm, figure_time_heatmap, figure_weekday
 
 
-# TODO: Add slider component, to limit x axis for all  plots
+def plot_placeholder(exercise: str) -> str:
+    """Display an error message in the plot if no data is available."""
+    if not exercise:
+        error_message = "Select an exercise to visualize data"
+    else:
+        error_message = "No data found for the selected time frame"
+    empty_message = {
+        "layout": {
+            "xaxis": {"visible": False},
+            "yaxis": {"visible": False},
+            "annotations": [
+                {
+                    "text": error_message,
+                    "xref": "paper",
+                    "yref": "paper",
+                    "showarrow": False,
+                    "font": {"size": 28},
+                }
+            ],
+        }
+    }
+    return empty_message
 
 
 if __name__ == "__main__":
