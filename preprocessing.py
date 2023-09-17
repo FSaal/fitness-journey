@@ -6,11 +6,13 @@ import numpy as np
 
 
 class PreprocessClass:
-    def __init__(self, gymbook_path, progression_path):
+    def __init__(self, gymbook_path: str, progression_path: str, weight1_path: str, weight2_path: str):
         self.progression_path = Path(progression_path)
         self.gymbook_path = Path(gymbook_path)
         self.PROGRESSION_NAME = "progression"
         self.GYMBOOK_NAME = "gymbook"
+        self.weight_path = Path(weight1_path)
+        self.weight2_path = Path(weight2_path)
 
     def fix_progression_csv(self, input_file_path: Path, output_file_path=None) -> Path:
         """Makes the progression csv readable and returns the path to the fixed csv"""
@@ -80,7 +82,8 @@ class PreprocessClass:
                         fixed_parts.append(part)
 
                 if len(fixed_parts) > 2:
-                    raise ValueError(f"Too many commas in line {i}: {line}")
+                    fixed_parts = [" ".join(fixed_parts)]
+                    # raise ValueError(f"Too many commas in line {i}: {line}")
 
                 line = ",".join(first_parts + fixed_parts + end_parts)
 
@@ -389,6 +392,7 @@ class PreprocessClass:
         }
 
         df["Weekday"] = df["Time"].dt.weekday.map(weekday_map)
+        df["Volume"] = df["Weight"] * df["Repetitions"]
         return df
 
     def main(self):
@@ -432,10 +436,22 @@ class PreprocessClass:
 
         df = self.add_other_stuff(df)
 
-        return df
+        df_bodyweight = self.get_body_weight_dataframe()
 
+        return df, df_bodyweight
 
-# progression_path = "2023-04-27 18 58 40.csv"
-# gymbook_path = "GymBook-Logs-2023-04-08.csv"
-# preprocess = PreprocessClass(gymbook_path, progression_path)
-# df = preprocess.main()
+    def get_body_weight_dataframe(self):
+        # Old data export from myFitnessPal
+        df_weight_old = pd.read_csv(self.weight_path, delimiter=";")
+        # Add a time to the date
+        df_weight_old["Time"] = df_weight_old["Date"] + " 09:00:00"
+        df_weight_old = df_weight_old.drop("Date", axis=1)
+
+        # New data export from Eufy Smart Scale
+        df_weight_new = pd.read_csv(self.weight2_path)
+        df_weight_new = df_weight_new.rename(columns={"WEIGHT (kg)": "Weight"})
+
+        df_weight = pd.concat([df_weight_old, df_weight_new])
+        df_weight["Time"] = pd.to_datetime(df_weight["Time"], format="%Y-%m-%d %H:%M:%S")
+
+        return df_weight
