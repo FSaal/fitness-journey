@@ -274,6 +274,7 @@ class PreprocessClass:
             # Progression
             "Barbell Shrug (Behind the Back)": "Barbell Shrug",
             "Chest Dip": "Dip",
+            "Deficit Deadlift": "Barbell Deficit Deadlift",
             "Machine Bench Press": "Seated Machine Bench Press",
         }
 
@@ -367,7 +368,7 @@ class PreprocessClass:
                 "Standing Cable Lift",
             },
             "Back": {"Weighted Chinup"},
-            "Arms": {"Wrist curl (Roller)"},
+            "Arms": {"Wrist Curl (Roller)"},
             "Shoulders": "Barbell Push Press",
         }
 
@@ -378,6 +379,54 @@ class PreprocessClass:
         for muscle_category, exercises in manual_map.items():
             for exercise in exercises:
                 df.loc[df["Exercise Name"] == exercise, "Bereich"] = muscle_category
+
+        df = df.rename(columns={"Bereich": "Muscle Category"})
+        return df
+
+    @staticmethod
+    def add_exercise_category(df: pd.DataFrame) -> pd.DataFrame:
+        map_exercise_to_type = {
+            "Barbell": {"Bar", "Box Squat", "Clean", "Ez-Bar", "Hexbar Deadlift", "Barbell"},
+            "Bodyweight": {
+                "Ab",
+                "Burpee",
+                "Chinup",
+                "Cossaq Squat",
+                "Crunch",
+                "Dip",
+                "Glute Ham Raise",
+                "Hanging Leg Raise",
+                "Incline Sit-Up",
+                "Pistol Squat",
+                "Plank",
+                "Pullup",
+                "Pushup",
+                "Razor Curl",
+                "Russian Twist",
+            },
+            "Cable": {"Cable", "One-Arm Lat Pull-Down", "Push-Down"},
+            "Dumbbell": {
+                "Bulgarian Split Squat",
+                "Dumbbell",
+                "Goblet Squat",
+                "Larsen Press",
+                "Press Around",
+                "Walking Lunge",
+            },
+            "Kettlebell": {"Kettlebell"},
+            "Machine": {
+                "Calf Press In Leg Press",
+                "Glute Drive",
+                "Machine",
+                "Single-Leg Press",
+                "Standing Calf Raisees",
+            },
+        }
+
+        df["Exercise Type"] = "Other"
+        for exercise_type, exercise in map_exercise_to_type.items():
+            mask = df["Exercise Name"].str.contains("|".join(exercise))
+            df.loc[mask, "Exercise Type"] = exercise_type
         return df
 
     @staticmethod
@@ -385,7 +434,7 @@ class PreprocessClass:
         # Remove NaNs
         df["Weight"] = df["Weight"].fillna(0).astype(float)
 
-        df["Bereich"] = df["Bereich"].astype("category")
+        df["Muscle Category"] = df["Muscle Category"].astype("category")
         df["Exercise Name"] = df["Exercise Name"].astype("category")
         df["Repetitions"] = df["Repetitions"].astype(int)
         df["Workout Name"] = df["Workout Name"].astype("category")
@@ -443,6 +492,7 @@ class PreprocessClass:
 
         df = self.match_exercise_names(df)
         df = self.add_muscle_category(df)
+        df = self.add_exercise_category(df)
 
         df = self.fix_dtypes(df)
 
