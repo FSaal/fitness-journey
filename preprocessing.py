@@ -270,7 +270,6 @@ class PreprocessClass:
         map_rename_in_both = {
             # Gymbook
             "Close-Grip Lat Pull-Down": "Close-Grip Machine Lat Pull-Down",
-            "Machine Bench Press": "Seated Machine Bench Press",
             "Parallel Bar Dip": "Dip",
             # Progression
             "Barbell Shrug (Behind the Back)": "Barbell Shrug",
@@ -282,6 +281,18 @@ class PreprocessClass:
         df["Exercise Name"] = df["Exercise Name"].replace(map_gymbook_to_progression)
         df["Exercise Name"] = df["Exercise Name"].replace(map_progression_to_gymbook)
         df["Exercise Name"] = df["Exercise Name"].replace(map_rename_in_both)
+
+        # Capitalize all exercise names
+        not_capitalized_exercise_names = [
+            exercise
+            for exercise in df["Exercise Name"].unique()
+            if not all(word.istitle() for word in exercise.split())
+            and not any(word in exercise for word in ["and", "in", "with"])
+        ]
+        capitalized_exercise_names = [exercise.title() for exercise in not_capitalized_exercise_names]
+        map_capitalize = {key: value for key, value in zip(not_capitalized_exercise_names, capitalized_exercise_names)}
+        df["Exercise Name"] = df["Exercise Name"].replace(map_capitalize)
+
         return df
 
     @staticmethod
@@ -310,8 +321,9 @@ class PreprocessClass:
             df.loc[(df["Exercise Name"] == exercise) & (df["Bereich"] == "Undefined"), "Bereich"] = muscle_category
 
         map_exercise_to_muscle = {
+            "Abs": {"Crunch"},
             "Arms": {"Push", "Curl", "Kickback", "Triceps"},
-            "Back": {"Pull", "Row", "deadlift"},
+            "Back": {"Pull", "Row", "Deadlift"},
             "Chest": {"Bench", "Crossover", "Fly"},
             "Legs": {"Calf", "Leg", "Squat", "Lunge", "Thigh", "Clean"},
             "Shoulders": {"Shoulder", "Shrug", "Delt", "Arnold", "Raise"},
@@ -349,7 +361,6 @@ class PreprocessClass:
         manual_map = {
             "Abs": {
                 "Ab Complex",
-                "Bicycle Crunch",
                 "Burpee",
                 "Plank",
                 "Russian Twist",
@@ -357,6 +368,7 @@ class PreprocessClass:
             },
             "Back": {"Weighted Chinup"},
             "Arms": {"Wrist curl (Roller)"},
+            "Shoulders": "Barbell Push Press",
         }
 
         for muscle_category, exercises in map_conflicts.items():
