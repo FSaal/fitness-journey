@@ -4,7 +4,7 @@ import dash_mantine_components as dmc
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from dash import Dash, Input, Output, callback, dcc, html
+from dash import Dash, Input, Output, callback, dcc, html, dash_table
 
 from preprocessing import PreprocessClass
 
@@ -69,22 +69,13 @@ app.layout = html.Div(
                     ),
                     span=2,
                 ),
+                dmc.Col(dmc.Switch(id="switch-show-comments", label="Show only commented sets")),
                 dmc.Col(dmc.Paper(dcc.Graph(id="graph-weight-by-exercise"), shadow="xs"), span=12),
                 dmc.Col(dmc.Paper(dcc.Graph(id="graph-volume-by-exercise"), shadow="xs"), span=6),
                 dmc.Col(dmc.Paper(dcc.Graph(id="graph-1rm-by-exercise"), shadow="xs"), span=6),
                 dmc.Col(dmc.Paper(dcc.Graph(id="graph-day-by-exercise"), shadow="xs"), span=6),
                 dmc.Col(dmc.Paper(dcc.Graph(id="graph-days-trained-by-exercise"), shadow="xs"), span=6),
             ]
-        ),
-        dcc.Graph(
-            figure=px.scatter_3d(
-                df[df["Exercise Name"].isin(["Barbell Bench Press", "Barbell Squat", "Barbell Deadlift"])],
-                x="Time",
-                y="Exercise Name",
-                z="Weight",
-                color="Repetitions",
-                size="Volume",
-            )
         ),
         dcc.Graph(
             id="graph-bodyweight",
@@ -97,7 +88,7 @@ app.layout = html.Div(
                 trendline_options=dict(frac=0.1),
             ),
         ),
-        # dash_table.DataTable(df_comments.to_dict("records")),
+        dash_table.DataTable(df_comments.to_dict("records")),
     ]
 )
 
@@ -119,8 +110,9 @@ def filter_exercise_by_musclegroup(muscle_group):
     Output("graph-days-trained-by-exercise", "figure"),
     Input("dropdown-exercise", "value"),
     Input("date-range-picker", "value"),
+    Input("switch-show-comments", "checked"),
 )
-def graph_by_exercise(exercise: str, date_range: list[str]):
+def graph_by_exercise(exercise: str, date_range: list[str], show_only_comment_sets: bool):
     """Different exercise specific plots over time. Such as weight, volume or 1rm."""
     df_filtered_exercise = df[df["Exercise Name"] == exercise]
     if date_range:
@@ -130,10 +122,18 @@ def graph_by_exercise(exercise: str, date_range: list[str]):
         df_filtered_exercise = df_filtered_exercise[
             (df_filtered_exercise["Time"] >= start_date) & (df_filtered_exercise["Time"] <= end_date)
         ]
+    if show_only_comment_sets:
+        df_filtered_exercise = df_filtered_exercise[df_filtered_exercise["Set Comment"].notna()]
 
     if df_filtered_exercise.empty:
         empty_message = plot_placeholder(exercise)
         return (empty_message,) * 5
+
+    # Limit max color scale value to not dilute the colors
+    if df_filtered_exercise["Repetitions"].max() > 12:
+        color_scale_range = [df_filtered_exercise["Repetitions"].min(), 12]
+    else:
+        color_scale_range = [df_filtered_exercise["Repetitions"].min(), df_filtered_exercise["Repetitions"].max()]
 
     # Plot - Weight over time
     figure_weight = px.scatter(
@@ -141,7 +141,9 @@ def graph_by_exercise(exercise: str, date_range: list[str]):
         x="Time",
         y="Weight",
         color="Repetitions",
+        range_color=color_scale_range,
         size="Volume",
+        hover_data=["Set Comment"],
         title="Weight Progression",
     )
     figure_weight.update_layout(yaxis_title="Weight [kg]")
@@ -156,6 +158,7 @@ def graph_by_exercise(exercise: str, date_range: list[str]):
         x="Time",
         y=one_rm,
         color="Repetitions",
+        range_color=color_scale_range,
         title="Estimated 1RM (only accurate up to 5 reps)",
     )
     figure_1rm.update_layout(yaxis_title="Weight [kg]")
