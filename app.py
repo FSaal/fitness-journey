@@ -31,7 +31,7 @@ app.layout = html.Div(
                 dmc.Col(
                     dmc.Select(
                         id="dropdown-muscle-group",
-                        data=sorted(set(df["Bereich"])),
+                        data=sorted(set(df["Muscle Category"])),
                         label="Muscle Group",
                         description="Filter exercises by muscle group",
                         searchable=True,
@@ -42,7 +42,7 @@ app.layout = html.Div(
                 dmc.Col(
                     dmc.Select(
                         id="dropdown-exercise-type",
-                        data=["Dumbbell", "Cable machine", "Barbell"],
+                        data=sorted(set(df["Exercise Type"])),
                         label="Exercise Type",
                         description="Filter exercises by exercise type",
                         searchable=True,
@@ -93,13 +93,23 @@ app.layout = html.Div(
 )
 
 
-@callback(Output("dropdown-exercise", "data"), Input("dropdown-muscle-group", "value"))
-def filter_exercise_by_musclegroup(muscle_group):
-    if not muscle_group:
+@callback(
+    Output("dropdown-exercise", "data"),
+    Input("dropdown-muscle-group", "value"),
+    Input("dropdown-exercise-type", "value"),
+)
+def filter_exercise_by_musclegroup(muscle_group, exercise_type):
+    """Update selectable exercises dependent on selected exercise type and muscle category."""
+    if not muscle_group and not exercise_type:
         return sorted(set(df["Exercise Name"]))
 
-    df_muscle_group_specific = df[df["Bereich"] == muscle_group]
-    return sorted(set(df_muscle_group_specific["Exercise Name"]))
+    if muscle_group and exercise_type:
+        df_filtered = df[(df["Muscle Category"] == muscle_group) & (df["Exercise Type"] == exercise_type)]
+    elif muscle_group:
+        df_filtered = df[df["Muscle Category"] == muscle_group]
+    elif exercise_type:
+        df_filtered = df[df["Exercise Type"] == exercise_type]
+    return sorted(set(df_filtered["Exercise Name"]))
 
 
 @callback(
