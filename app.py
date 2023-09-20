@@ -4,7 +4,8 @@ import dash_mantine_components as dmc
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from dash import Dash, Input, Output, callback, dcc, html, dash_table
+from dash import Dash, Input, Output, callback, dcc, html, dash_table, State
+from dash_iconify import DashIconify
 
 from preprocessing import PreprocessClass
 
@@ -21,61 +22,69 @@ df, df_weight = preprocess.main()
 # All sets with comments
 df_comments = df[df["Set Comment"].notna()]
 
-
-app.layout = html.Div(
+header = dmc.Header(
+    height=50,
     children=[
-        dmc.Title("Plots by Exercise"),
-        dmc.Text("Section exercise based plots"),
+        dmc.Group([dmc.Burger(id="button-toggle-sidebar", opened=True), dmc.Button("Home"), dmc.Button("Overview")])
+    ],
+)
+sidebar = dmc.Aside(
+    id="sidebar",
+    children=dmc.Stack(
+        [
+            dmc.Title("Plots by Exercise", color="white"),
+            dmc.Text("Section exercise based plots", color="white"),
+            dmc.Select(
+                id="dropdown-muscle-group",
+                data=sorted(set(df["Muscle Category"])),
+                label="Muscle Group",
+                description="Filter exercises by muscle group",
+                clearable=True,
+                icon=DashIconify(icon="icon-park-outline:muscle", color="blue"),
+            ),
+            dmc.Select(
+                id="dropdown-exercise-type",
+                data=sorted(set(df["Exercise Type"])),
+                label="Exercise Type",
+                clearable=True,
+                icon=DashIconify(icon="material-symbols:exercise-outline", color="blue", width=17),
+                description="Filter exercises by exercise type",
+            ),
+            dmc.Select(
+                id="dropdown-exercise",
+                data=sorted(set(df["Exercise Name"])),
+                label="Exercise",
+                value="Barbell Squat",
+                icon=DashIconify(icon="healthicons:exercise-weights", color="blue", width=20),
+                nothingFound="Exercise not found",
+                description="Plot",
+                placeholder="Enter or select an exercise",
+                searchable=True,
+                clearable=True,
+            ),
+            dmc.DateRangePicker(
+                id="date-range-picker",
+                label="Timeframe",
+                description="Limit plots to a certain time frame.",
+                minDate=min(df["Time"]),
+                maxDate=max(df["Time"]),
+            ),
+            dmc.Switch(id="switch-show-comments", label="Show only commented sets"),
+        ]
+    ),
+)
+content = html.Div(
+    id="content",
+    children=[
         dmc.Grid(
             children=[
-                dmc.Col(
-                    dmc.Select(
-                        id="dropdown-muscle-group",
-                        data=sorted(set(df["Muscle Category"])),
-                        label="Muscle Group",
-                        description="Filter exercises by muscle group",
-                        searchable=True,
-                    ),
-                    span=3,
-                ),
-                # TODO add exercise type to each column in dataframe
-                dmc.Col(
-                    dmc.Select(
-                        id="dropdown-exercise-type",
-                        data=sorted(set(df["Exercise Type"])),
-                        label="Exercise Type",
-                        description="Filter exercises by exercise type",
-                        searchable=True,
-                    ),
-                    span=3,
-                ),
-                dmc.Col(
-                    dmc.Select(
-                        id="dropdown-exercise",
-                        data=sorted(set(df["Exercise Name"])),
-                        label="Exercise",
-                        description="Plot",
-                        searchable=True,
-                    ),
-                    span=3,
-                ),
-                dmc.Col(
-                    dmc.DateRangePicker(
-                        id="date-range-picker",
-                        label="Timeframe",
-                        description="Limit plots to a certain time frame.",
-                        minDate=min(df["Time"]),
-                        maxDate=max(df["Time"]),
-                    ),
-                    span=2,
-                ),
-                dmc.Col(dmc.Switch(id="switch-show-comments", label="Show only commented sets")),
                 dmc.Col(dmc.Paper(dcc.Graph(id="graph-weight-by-exercise"), shadow="xs"), span=12),
                 dmc.Col(dmc.Paper(dcc.Graph(id="graph-volume-by-exercise"), shadow="xs"), span=6),
                 dmc.Col(dmc.Paper(dcc.Graph(id="graph-1rm-by-exercise"), shadow="xs"), span=6),
                 dmc.Col(dmc.Paper(dcc.Graph(id="graph-day-by-exercise"), shadow="xs"), span=6),
                 dmc.Col(dmc.Paper(dcc.Graph(id="graph-days-trained-by-exercise"), shadow="xs"), span=6),
-            ]
+            ],
+            justify="flex-end",
         ),
         dcc.Graph(
             id="graph-bodyweight",
@@ -88,9 +97,29 @@ app.layout = html.Div(
                 trendline_options=dict(frac=0.1),
             ),
         ),
-        dash_table.DataTable(df_comments.to_dict("records")),
-    ]
+        # dash_table.DataTable(df_comments.to_dict("records")),
+    ],
 )
+
+
+app.layout = dmc.MantineProvider(
+    theme={
+        # "colorScheme": "dark",
+    },
+    children=[html.Div(children=[header, sidebar, content])],
+)
+
+
+@callback(
+    Output("sidebar", "style"),
+    Output("content", "style"),
+    Input("button-toggle-sidebar", "opened"),
+)
+def toggle_sidebar(opened: bool) -> tuple([dict, dict]):
+    """Toggle the sidebar."""
+    if opened:
+        return SIDEBAR_STYLE, CONTENT_STYLE_COMPACT
+    return SIDEBAR_HIDDEN, CONTENT_STYLE_FULL
 
 
 @callback(
@@ -235,6 +264,55 @@ def plot_placeholder(exercise: str) -> str:
         }
     }
     return empty_message
+
+
+# the style arguments for the sidebar. We use position:fixed and a fixed width
+SIDEBAR_STYLE = {
+    "position": "fixed",
+    "top": 62.5,
+    "left": 0,
+    "bottom": 0,
+    "width": "22rem",
+    "height": "100%",
+    "z-index": 1,
+    "overflow-x": "hidden",
+    "transition": "all 0.5s",
+    "padding": "0.5rem 1rem",
+    # "background-image": "linear-gradient(90deg, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.5) 100%)"
+    # "background-color": "#845ef7",
+}
+
+SIDEBAR_HIDDEN = {
+    "position": "fixed",
+    "top": 62.5,
+    "left": "-22rem",
+    "bottom": 0,
+    "width": "22rem",
+    "height": "100%",
+    "z-index": 1,
+    "overflow-x": "hidden",
+    "transition": "all 0.5s",
+    "padding": "0rem 0rem",
+    # "background-color": "#845ef7",
+}
+
+# the styles for the main content position it to the right of the sidebar and
+# add some padding.
+CONTENT_STYLE_COMPACT = {
+    "transition": "margin-left .5s",
+    "margin-left": "18rem",
+    "margin-right": "2rem",
+    "padding": "2rem 1rem",
+    "background-color": "#f8f9fa",
+}
+
+CONTENT_STYLE_FULL = {
+    "transition": "margin-left .5s",
+    "margin-left": "2rem",
+    "margin-right": "2rem",
+    "padding": "2rem 1rem",
+    "background-color": "#f8f9fa",
+}
 
 
 if __name__ == "__main__":
