@@ -4,7 +4,7 @@ import dash_mantine_components as dmc
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from dash import Dash, Input, Output, callback, dcc, html, dash_table, State
+from dash import Dash, Input, Output, callback, dcc, html, dash_table, State, html
 from dash_iconify import DashIconify
 
 from preprocessing import PreprocessClass
@@ -22,12 +22,8 @@ df, df_weight = preprocess.main()
 # All sets with comments
 df_comments = df[df["Set Comment"].notna()]
 
-header = dmc.Header(
-    height=50,
-    children=[
-        dmc.Group([dmc.Burger(id="button-toggle-sidebar", opened=True), dmc.Button("Home"), dmc.Button("Overview")])
-    ],
-)
+header = dmc.Header(height=50, children=[dmc.Group([dmc.Burger(id="button-toggle-sidebar", opened=True)])])
+
 sidebar = dmc.Aside(
     id="sidebar",
     children=dmc.Stack(
@@ -73,9 +69,65 @@ sidebar = dmc.Aside(
         ]
     ),
 )
+
+
+def info_card(description_text, main_text_id, negative_text_id, positive_text_id, icon, icon_size=30):
+    return dmc.Card(
+        children=[
+            dmc.Stack(
+                [
+                    dmc.Group(
+                        [
+                            dmc.Text(id=main_text_id, weight=700, size="xl"),
+                            DashIconify(icon=icon, width=icon_size),
+                        ],
+                        position="apart",
+                    ),
+                    dmc.Text(children=description_text, color="dimmed", size="sm"),
+                    dmc.Group(
+                        [
+                            dmc.Badge(id=negative_text_id, color="red"),
+                            dmc.Badge(id=positive_text_id, color="green"),
+                        ],
+                        spacing="md",
+                    ),
+                ],
+                spacing="sm",
+            )
+        ],
+        shadow="sm",
+    )
+
+
 content = html.Div(
     id="content",
     children=[
+        dmc.Group(
+            [
+                info_card(
+                    "Weight moved on average",
+                    "text-median-weight-by-exercise",
+                    "badge-min-weight-by-exercise",
+                    "badge-max-weight-by-exercise",
+                    "pajamas:weight",
+                ),
+                info_card(
+                    "Reps performed on average",
+                    "text-median-reps-by-exercise",
+                    "badge-min-reps-by-exercise",
+                    "badge-max-reps-by-exercise",
+                    "pajamas:repeat",
+                ),
+                info_card(
+                    "Rest time on average",
+                    "text-median-rest-by-exercise",
+                    "badge-min-rest-by-exercise",
+                    "badge-max-rest-by-exercise",
+                    "bi:stopwatch",
+                ),
+            ]
+        ),
+        html.Br(),
         dmc.Grid(
             children=[
                 dmc.Col(dmc.Paper(dcc.Graph(id="graph-weight-by-exercise"), shadow="xs"), span=12),
@@ -242,6 +294,42 @@ def graph_by_exercise(exercise: str, date_range: list[str], show_only_comment_se
     return figure_weight, figure_volume, figure_1rm, figure_time_heatmap, figure_weekday
 
 
+@callback(
+    [Output(f"badge-min-{category}-by-exercise", "children") for category in ["weight", "reps", "rest"]],
+    [Output(f"badge-max-{category}-by-exercise", "children") for category in ["weight", "reps", "rest"]],
+    [Output(f"text-median-{category}-by-exercise", "children") for category in ["weight", "reps", "rest"]],
+    Input("dropdown-exercise", "value"),
+)
+def stats_by_exercise(exercise):
+    df_filtered_exercise = df[df["Exercise Name"] == exercise]
+
+    weight_statistics = df_filtered_exercise["Weight"].agg(["min", "max", "median"])
+    reps_statistics = df_filtered_exercise["Repetitions"].agg(["min", "max", "median"])
+
+    # Calculate median rest time between sets
+    # TODO: Logic Flaw - this is not the rest time, but the rest time + exercise time
+    stats_per_date = df_filtered_exercise.groupby(df_filtered_exercise["Time"].dt.date)["Time"].agg(
+        ["min", "max", "count"]
+    )
+    time_difference = (stats_per_date["max"] - stats_per_date["min"]).dt.total_seconds()
+    # Remove days with zero rest time, either due to only one set that day or data added after training
+    stats_per_date = stats_per_date[time_difference > 0]
+    avg_set_time_per_date = time_difference / stats_per_date["count"]
+    set_time_statistics = avg_set_time_per_date.agg(["min", "max", "median"])
+
+    return (
+        weight_statistics["min"],
+        reps_statistics["min"],
+        round(set_time_statistics["min"]),
+        weight_statistics["max"],
+        reps_statistics["max"],
+        round(set_time_statistics["max"]),
+        f"{weight_statistics['median']} kg",
+        reps_statistics["median"],
+        f"{round(set_time_statistics['median'])} s",
+    )
+
+
 def plot_placeholder(exercise: str) -> str:
     """Display an error message in the plot if no data is available."""
     if not exercise:
@@ -300,7 +388,7 @@ SIDEBAR_HIDDEN = {
 # add some padding.
 CONTENT_STYLE_COMPACT = {
     "transition": "margin-left .5s",
-    "margin-left": "18rem",
+    "margin-left": "22rem",
     "margin-right": "2rem",
     "padding": "2rem 1rem",
     "background-color": "#f8f9fa",
