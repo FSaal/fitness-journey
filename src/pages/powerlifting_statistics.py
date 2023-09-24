@@ -11,7 +11,7 @@ def powerlifting_content(df):
     powerlifting_exercises = ["Barbell Squat", "Barbell Bench Press", "Barbell Deadlift"]
     df_powerlifting = df[df["Exercise Name"].isin(powerlifting_exercises)]
     fig = px.scatter(
-        df_powerlifting, x="Time", y="Weight", color="Exercise Name", symbol="Exercise Name", hover_name="Repetitions"
+        df_powerlifting, y="Weight", color="Exercise Name", symbol="Exercise Name", hover_name="Repetitions"
     )
     fig.update_xaxes(title_text="Time")
     fig.update_yaxes(title_text="Weight [kg]")
@@ -20,9 +20,10 @@ def powerlifting_content(df):
     strength_cards = []
     exercise_icons = []
     for exercise in powerlifting_exercises:
-        record_idx = df[df["Exercise Name"] == exercise]["Weight"].argmax()
-        record_date = df[df["Exercise Name"] == exercise]["Time"].iloc[record_idx].strftime("%d.%m.%y")
-        record = df[df["Exercise Name"] == exercise]["Weight"].iloc[record_idx]
+        df_exercise = df[df["Exercise Name"] == exercise]
+        record_idx = df_exercise["Weight"].argmax()
+        record_date = df_exercise.index[record_idx].strftime("%d.%m.%y")
+        record = df_exercise["Weight"][record_idx]
         strength_cards.append(strength_card(exercise.split(" ")[1], record, record_date, "pajamas:weight"))
     strength_cards = dmc.Group(strength_cards, spacing="md")
 

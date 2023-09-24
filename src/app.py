@@ -1,12 +1,6 @@
-from datetime import datetime
-
 import dash_mantine_components as dmc
-import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 from dash import Dash, Input, Output, State, callback, dash_table, dcc, html
 from dash_iconify import DashIconify
-from plotly.subplots import make_subplots
 
 from pages.exercise_statistics import exercise_content
 from pages.general_statistics import timely_content
@@ -68,8 +62,8 @@ sidebar = dmc.Aside(
                 label="Timeframe",
                 icon=DashIconify(icon="clarity:date-line"),
                 description="Limit plots to a certain time frame.",
-                minDate=min(df["Time"]),
-                maxDate=max(df["Time"]),
+                minDate=min(df.index),
+                maxDate=max(df.index),
             ),
             dmc.Switch(id="switch-show-comments", label="Show only commented sets"),
         ]

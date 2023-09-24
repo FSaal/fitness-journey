@@ -497,6 +497,9 @@ class PreprocessClass:
         df = self.fix_dtypes(df)
 
         df = self.add_other_stuff(df)
+        df = df.sort_values("Time").reset_index(drop=True)
+        df.index = df["Time"]
+        # df.drop("Time", axis=1, inplace=True)
 
         df_bodyweight = self.get_body_weight_dataframe()
 
