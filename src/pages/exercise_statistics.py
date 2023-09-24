@@ -52,7 +52,6 @@ def exercise_content(app, df, df_weight):
                 id="graph-bodyweight",
                 figure=px.scatter(
                     df_weight,
-                    x="Time",
                     y="Weight",
                     title="Bodyweight",
                     trendline="lowess",
@@ -117,7 +116,7 @@ def get_callbacks(app, df, df_weight):
         if date_range:
             start_date, end_date = pd.to_datetime(date_range)
             df_filtered_exercise = df_filtered_exercise[
-                (df_filtered_exercise["Time"] >= start_date) & (df_filtered_exercise["Time"] <= end_date)
+                (df_filtered_exercise.index >= start_date) & (df_filtered_exercise.index <= end_date)
             ]
         if show_only_comment_sets:
             df_filtered_exercise = df_filtered_exercise[df_filtered_exercise["Set Comment"].notna()]
@@ -150,7 +149,6 @@ def get_callbacks(app, df, df_weight):
         # Plot - Weight over time
         figure_weight = px.scatter(
             df_filtered_exercise,
-            x="Time",
             y="Weight",
             color="Repetitions",
             range_color=color_scale_range,
@@ -167,7 +165,6 @@ def get_callbacks(app, df, df_weight):
         one_rm = df_filtered_exercise_reps["Weight"] / (1.0278 - (0.0278) * df_filtered_exercise_reps["Repetitions"])
         figure_1rm = px.scatter(
             df_filtered_exercise_reps,
-            x="Time",
             y=one_rm,
             color="Repetitions",
             range_color=color_scale_range,
@@ -176,7 +173,7 @@ def get_callbacks(app, df, df_weight):
         figure_1rm.update_layout(yaxis_title="Weight [kg]")
 
         # Plot - Volume per training day over time
-        grouped_by_date = df_filtered_exercise.groupby(df_filtered_exercise["Time"].dt.date)
+        grouped_by_date = df_filtered_exercise.groupby(df_filtered_exercise.index.date)
         volume = grouped_by_date.apply(lambda x: (x["Repetitions"] * x["Weight"]).sum())
         n_sets = grouped_by_date.apply(lambda x: x["Set Order"].count())
         figure_volume = px.scatter(
@@ -198,7 +195,7 @@ def get_callbacks(app, df, df_weight):
         figure_time_heatmap = px.density_heatmap(
             df_filtered_exercise,
             x="Weekday",
-            y=df_filtered_exercise["Time"].dt.hour,
+            y=df_filtered_exercise.index.hour,
             category_orders={"Weekday": list(weekday_map.values())},
             title="Favorite Set Time",
         )
@@ -231,7 +228,7 @@ def get_callbacks(app, df, df_weight):
 
         # Calculate median rest time between sets
         # TODO: Logic Flaw - this is not the rest time, but the rest time + exercise time
-        stats_per_date = df_filtered_exercise.groupby(df_filtered_exercise["Time"].dt.date)["Time"].agg(
+        stats_per_date = df_filtered_exercise.groupby(df_filtered_exercise.index.date)["Time"].agg(
             ["min", "max", "count"]
         )
         time_difference = (stats_per_date["max"] - stats_per_date["min"]).dt.total_seconds()
