@@ -22,6 +22,13 @@ def exercise_content(app, df, df_weight):
                         "pajamas:weight",
                     ),
                     info_card(
+                        "Sets performed on average",
+                        "text-median-sets-by-exercise",
+                        "badge-min-sets-by-exercise",
+                        "badge-max-sets-by-exercise",
+                        "pajamas:seteat",
+                    ),
+                    info_card(
                         "Reps performed on average",
                         "text-median-reps-by-exercise",
                         "badge-min-reps-by-exercise",
@@ -40,11 +47,32 @@ def exercise_content(app, df, df_weight):
             html.Br(),
             dmc.Grid(
                 children=[
-                    dmc.Col(dmc.Paper(dcc.Graph(id="graph-weight-by-exercise"), shadow="xs"), span=12),
-                    dmc.Col(dmc.Paper(dcc.Graph(id="graph-volume-by-exercise"), shadow="xs"), span=6),
-                    dmc.Col(dmc.Paper(dcc.Graph(id="graph-1rm-by-exercise"), shadow="xs"), span=6),
-                    dmc.Col(dmc.Paper(dcc.Graph(id="graph-day-by-exercise"), shadow="xs"), span=6),
-                    dmc.Col(dmc.Paper(dcc.Graph(id="graph-days-trained-by-exercise"), shadow="xs"), span=6),
+                    dmc.Col(
+                        dmc.Paper(
+                            dcc.Graph(id="graph-weight-by-exercise"), shadow="xs"
+                        ),
+                        span=12,
+                    ),
+                    dmc.Col(
+                        dmc.Paper(
+                            dcc.Graph(id="graph-volume-by-exercise"), shadow="xs"
+                        ),
+                        span=6,
+                    ),
+                    dmc.Col(
+                        dmc.Paper(dcc.Graph(id="graph-1rm-by-exercise"), shadow="xs"),
+                        span=6,
+                    ),
+                    dmc.Col(
+                        dmc.Paper(dcc.Graph(id="graph-day-by-exercise"), shadow="xs"),
+                        span=6,
+                    ),
+                    dmc.Col(
+                        dmc.Paper(
+                            dcc.Graph(id="graph-days-trained-by-exercise"), shadow="xs"
+                        ),
+                        span=6,
+                    ),
                 ],
                 justify="flex-end",
             ),
@@ -63,7 +91,14 @@ def exercise_content(app, df, df_weight):
     )
 
 
-def info_card(description_text, main_text_id, negative_text_id, positive_text_id, icon, icon_size=30):
+def info_card(
+    description_text,
+    main_text_id,
+    negative_text_id,
+    positive_text_id,
+    icon,
+    icon_size=30,
+):
     return dmc.Card(
         children=[
             dmc.Stack(
@@ -103,7 +138,10 @@ def get_callbacks(app, df, df_weight):
             return sorted(set(df["Exercise Name"]))
 
         if muscle_group and exercise_type:
-            df_filtered = df[(df["Muscle Category"] == muscle_group) & (df["Exercise Type"] == exercise_type)]
+            df_filtered = df[
+                (df["Muscle Category"] == muscle_group)
+                & (df["Exercise Type"] == exercise_type)
+            ]
         elif muscle_group:
             df_filtered = df[df["Muscle Category"] == muscle_group]
         elif exercise_type:
@@ -116,10 +154,13 @@ def get_callbacks(app, df, df_weight):
         if date_range:
             start_date, end_date = pd.to_datetime(date_range)
             df_filtered_exercise = df_filtered_exercise[
-                (df_filtered_exercise.index >= start_date) & (df_filtered_exercise.index <= end_date)
+                (df_filtered_exercise.index >= start_date)
+                & (df_filtered_exercise.index <= end_date)
             ]
         if show_only_comment_sets:
-            df_filtered_exercise = df_filtered_exercise[df_filtered_exercise["Set Comment"].notna()]
+            df_filtered_exercise = df_filtered_exercise[
+                df_filtered_exercise["Set Comment"] != "None"
+            ]
         return df_filtered_exercise
 
     @callback(
@@ -132,9 +173,13 @@ def get_callbacks(app, df, df_weight):
         Input("date-range-picker", "value"),
         Input("switch-show-comments", "checked"),
     )
-    def graph_by_exercise(exercise: str, date_range: list[str], show_only_comment_sets: bool):
+    def graph_by_exercise(
+        exercise: str, date_range: list[str], show_only_comment_sets: bool
+    ):
         """Different exercise specific plots over time. Such as weight, volume or 1rm."""
-        df_filtered_exercise = filter_exercise_data(df, exercise, date_range, show_only_comment_sets)
+        df_filtered_exercise = filter_exercise_data(
+            df, exercise, date_range, show_only_comment_sets
+        )
 
         if df_filtered_exercise.empty:
             empty_message = plot_placeholder(exercise)
@@ -144,11 +189,15 @@ def get_callbacks(app, df, df_weight):
         if df_filtered_exercise["Repetitions"].max() > 12:
             color_scale_range = [df_filtered_exercise["Repetitions"].min(), 12]
         else:
-            color_scale_range = [df_filtered_exercise["Repetitions"].min(), df_filtered_exercise["Repetitions"].max()]
+            color_scale_range = [
+                df_filtered_exercise["Repetitions"].min(),
+                df_filtered_exercise["Repetitions"].max(),
+            ]
 
         # Plot - Weight over time
         figure_weight = px.scatter(
             df_filtered_exercise,
+            x="Time",
             y="Weight",
             color="Repetitions",
             range_color=color_scale_range,
@@ -156,30 +205,44 @@ def get_callbacks(app, df, df_weight):
             hover_data=["Set Comment"],
             title="Weight Progression",
         )
-        figure_weight.update_layout(yaxis_title="Weight [kg]")
+        figure_weight.update_layout(yaxis_title="Weight [kg]", hovermode="x")
+        # TODO: Change hoverup layout (e.g. add kg at the end of weight and volume)
 
         # Plot - Estimated 1RM over time
         # 1RM Formula is only accurate up to about 12 reps
         max_reps = 12
-        df_filtered_exercise_reps = df_filtered_exercise[df_filtered_exercise["Repetitions"] < max_reps]
-        one_rm = df_filtered_exercise_reps["Weight"] / (1.0278 - (0.0278) * df_filtered_exercise_reps["Repetitions"])
+        df_filtered_exercise_reps = df_filtered_exercise[
+            df_filtered_exercise["Repetitions"] < max_reps
+        ]
+        one_rm = df_filtered_exercise_reps["Weight"] / (
+            1.0278 - (0.0278) * df_filtered_exercise_reps["Repetitions"]
+        )
         figure_1rm = px.scatter(
             df_filtered_exercise_reps,
+            x="Time",
             y=one_rm,
             color="Repetitions",
             range_color=color_scale_range,
             title="Estimated 1RM (only accurate up to 5 reps)",
         )
         figure_1rm.update_layout(yaxis_title="Weight [kg]")
+        # TODO: Change marker type for points with Repetions > 5 to 'diamond'
 
         # Plot - Volume per training day over time
         grouped_by_date = df_filtered_exercise.groupby(df_filtered_exercise.index.date)
         volume = grouped_by_date.apply(lambda x: (x["Repetitions"] * x["Weight"]).sum())
         n_sets = grouped_by_date.apply(lambda x: x["Set Order"].count())
         figure_volume = px.scatter(
-            x=volume.index, y=volume, color=n_sets, title="Volume (Weight * Reps) Progression per Training Day"
+            x=volume.index,
+            y=volume,
+            color=n_sets,
+            title="Volume (Weight * Reps) Progression per Training Day",
         )
-        figure_volume.update_layout(xaxis_title="Time", yaxis_title="Volume [kg]", coloraxis_colorbar_title_text="Sets")
+        figure_volume.update_layout(
+            xaxis_title="Time",
+            yaxis_title="Volume [kg]",
+            coloraxis_colorbar_title_text="Sets",
+        )
 
         # Plot - Most trained day and time
         weekday_map = {
@@ -200,6 +263,8 @@ def get_callbacks(app, df, df_weight):
             title="Favorite Set Time",
         )
         figure_time_heatmap.update_layout(yaxis_title="Hour")
+        # Reverse the y-axis order
+        figure_time_heatmap.update_yaxes(autorange="reversed")
 
         # Plot - Most trained day
         weekdays = pd.Categorical(
@@ -207,31 +272,60 @@ def get_callbacks(app, df, df_weight):
             categories=list(weekday_map.values()),
         )
         figure_weekday = px.histogram(weekdays.sort_values(), title="Training Days")
-        figure_weekday.update_layout(xaxis_title="Weekday", yaxis_title="Training Days", showlegend=False)
+        figure_weekday.update_layout(
+            xaxis_title="Weekday", yaxis_title="Training Days", showlegend=False
+        )
+        # TODO: Change Hoverup text (remove variable=0)
 
-        return figure_weight, figure_volume, figure_1rm, figure_time_heatmap, figure_weekday
+        return (
+            figure_weight,
+            figure_volume,
+            figure_1rm,
+            figure_time_heatmap,
+            figure_weekday,
+        )
 
     @callback(
-        [Output(f"badge-min-{category}-by-exercise", "children") for category in ["weight", "reps", "rest"]],
-        [Output(f"badge-max-{category}-by-exercise", "children") for category in ["weight", "reps", "rest"]],
-        [Output(f"text-median-{category}-by-exercise", "children") for category in ["weight", "reps", "rest"]],
+        [
+            Output(f"badge-min-{category}-by-exercise", "children")
+            for category in ["weight", "sets", "reps", "rest"]
+        ],
+        [
+            Output(f"badge-max-{category}-by-exercise", "children")
+            for category in ["weight", "sets", "reps", "rest"]
+        ],
+        [
+            Output(f"text-median-{category}-by-exercise", "children")
+            for category in ["weight", "sets", "reps", "rest"]
+        ],
         Input("dropdown-exercise", "value"),
     )
-    def stats_by_exercise(exercise: str) -> tuple([str] * 9):
+    def stats_by_exercise(exercise: str) -> tuple([str] * 12):
         """Display statistics for the selected exercise."""
         df_filtered_exercise = df[df["Exercise Name"] == exercise]
         if df_filtered_exercise.empty:
-            return ("",) * 9
+            return ("",) * 12
 
         weight_statistics = df_filtered_exercise["Weight"].agg(["min", "max", "median"])
-        reps_statistics = df_filtered_exercise["Repetitions"].agg(["min", "max", "median"])
+        reps_statistics = df_filtered_exercise["Repetitions"].agg(
+            ["min", "max", "median"]
+        )
+        sets_statistics = (
+            df_filtered_exercise.groupby(df_filtered_exercise["Time"].dt.date)[
+                "Set Order"
+            ]
+            .count()
+            .agg(["min", "max", "median"])
+        )
 
         # Calculate median rest time between sets
         # TODO: Logic Flaw - this is not the rest time, but the rest time + exercise time
-        stats_per_date = df_filtered_exercise.groupby(df_filtered_exercise.index.date)["Time"].agg(
-            ["min", "max", "count"]
-        )
-        time_difference = (stats_per_date["max"] - stats_per_date["min"]).dt.total_seconds()
+        stats_per_date = df_filtered_exercise.groupby(df_filtered_exercise.index.date)[
+            "Time"
+        ].agg(["min", "max", "count"])
+        time_difference = (
+            stats_per_date["max"] - stats_per_date["min"]
+        ).dt.total_seconds()
         # Remove days with zero rest time, either due to only one set that day or data added after training
         stats_per_date = stats_per_date[time_difference > 0]
         avg_set_time_per_date = time_difference / stats_per_date["count"]
@@ -242,6 +336,11 @@ def get_callbacks(app, df, df_weight):
             weight_statistics["min"],
             weight_statistics["max"],
             weight_statistics["median"],
+        )
+        sets_min, sets_max, sets_median = (
+            sets_statistics["min"],
+            sets_statistics["max"],
+            round(sets_statistics["median"]),
         )
         reps_min, reps_max, reps_median = (
             reps_statistics["min"],
@@ -257,12 +356,15 @@ def get_callbacks(app, df, df_weight):
         # Return the formatted statistics
         return (
             f"{weight_min} kg",
+            sets_min,
             reps_min,
             f"{set_time_max} s",
             f"{weight_max} kg",
+            sets_max,
             reps_max,
             f"{set_time_min} s",
             f"{weight_median} kg",
+            f"{sets_median} sets",
             f"{reps_median} reps",
             f"{set_time_median} s",
         )
