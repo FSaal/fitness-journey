@@ -5,11 +5,12 @@ from dash_iconify import DashIconify
 from pages.exercise_statistics import exercise_content
 from pages.general_statistics import timely_content
 from pages.powerlifting_statistics import powerlifting_content
+from pages.playground import playground
 from preprocessing import PreprocessClass
 
 app = Dash(__name__)
 
-progression_path = r"data\2023-09-16 17 16 38.csv"
+progression_path = r"data\2024-01-21 18 02 06.csv"
 gymbook_path = r"data\GymBook-Logs-2023-04-08.csv"
 weight1_path = r"data\weight.csv"
 weight2_path = r"data\weight_Felix_1694877519.csv"
@@ -20,7 +21,14 @@ df, df_weight = preprocess.main()
 header = dmc.Header(
     height=50,
     fixed=True,
-    children=[dmc.Group([dmc.Burger(id="button-toggle-sidebar", opened=True), dmc.Title("Fitness", align="center")])],
+    children=[
+        dmc.Group(
+            [
+                dmc.Burger(id="button-toggle-sidebar", opened=True),
+                dmc.Title("Fitness", align="center"),
+            ]
+        )
+    ],
 )
 
 sidebar = dmc.Aside(
@@ -42,7 +50,9 @@ sidebar = dmc.Aside(
                 data=sorted(set(df["Exercise Type"])),
                 label="Exercise Type",
                 clearable=True,
-                icon=DashIconify(icon="material-symbols:exercise-outline", color="blue", width=17),
+                icon=DashIconify(
+                    icon="material-symbols:exercise-outline", color="blue", width=17
+                ),
                 description="Filter exercises by exercise type",
             ),
             dmc.Select(
@@ -50,7 +60,9 @@ sidebar = dmc.Aside(
                 data=sorted(set(df["Exercise Name"])),
                 label="Exercise",
                 value="Barbell Squat",
-                icon=DashIconify(icon="healthicons:exercise-weights", color="blue", width=20),
+                icon=DashIconify(
+                    icon="healthicons:exercise-weights", color="blue", width=20
+                ),
                 nothingFound="Exercise not found",
                 description="Plot",
                 placeholder="Enter or select an exercise",
@@ -80,11 +92,13 @@ content = html.Div(
                         dmc.Tab("Exercise", value="exercise"),
                         dmc.Tab("Powerlifting Headquarter", value="powerlifting"),
                         dmc.Tab("Timely", value="settings"),
+                        dmc.Tab("Data Playground", value="playground"),
                     ],
                 ),
                 dmc.TabsPanel(exercise_content(app, df, df_weight), value="exercise"),
                 dmc.TabsPanel(powerlifting_content(df), value="powerlifting"),
                 dmc.TabsPanel(timely_content(df), value="settings"),
+                dmc.TabsPanel(playground(df), value="playground"),
             ],
             value="exercise",
             color="violet",
