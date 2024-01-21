@@ -8,7 +8,16 @@ def timely_content(df):
     training_days_per_week = training_days(df)
     training_time_per_day = training_time(df)
     moved_weight = lifted_weight(df)
-    return dmc.Paper([training_days_per_week, training_time_per_day, moved_weight])
+    performed_reps = done_reps(df)
+    return dmc.SimpleGrid(
+        cols=2,
+        children=[
+            dmc.Paper(training_days_per_week, shadow="md"),
+            dmc.Paper(training_time_per_day, shadow="md"),
+            dmc.Paper(moved_weight, shadow="md"),
+            dmc.Paper(performed_reps, shadow="md"),
+        ],
+    )
 
 
 def training_days(df):
@@ -51,6 +60,15 @@ def training_time(df):
 
 def lifted_weight(df):
     lifted_weight = (df["Weight"] * df["Repetitions"]).cumsum().rename("Weight")
-    fig = px.line(lifted_weight, y="Weight")
-    fig.update_layout(title="Lifted Weight per")
+    fig = px.area(lifted_weight, y="Weight")
+    fig.update_layout(title="Lifted Weight cumulative sum", yaxis_title="Weight [kg]")
+    return dcc.Graph(figure=fig)
+
+
+def done_reps(df):
+    done_reps = df["Repetitions"].cumsum()
+    fig = px.area(done_reps, y="Repetitions")
+    fig.update_layout(
+        title="Performed Repetitions cumulative sum", yaxis_title="Repetitions"
+    )
     return dcc.Graph(figure=fig)
