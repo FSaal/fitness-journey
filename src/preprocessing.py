@@ -6,7 +6,13 @@ import numpy as np
 
 
 class PreprocessClass:
-    def __init__(self, gymbook_path: str, progression_path: str, weight1_path: str, weight2_path: str):
+    def __init__(
+        self,
+        gymbook_path: str,
+        progression_path: str,
+        weight1_path: str,
+        weight2_path: str,
+    ):
         self.progression_path = Path(progression_path)
         self.gymbook_path = Path(gymbook_path)
         self.PROGRESSION_NAME = "progression"
@@ -41,11 +47,17 @@ class PreprocessClass:
             if not line:
                 next_line = next(reader)
                 last_line = fixed_lines[-1]
-                fixed_lines[-1] = last_line[:-1] + [". ".join([last_line[-1], next_line[0]])] + next_line[1:]
+                fixed_lines[-1] = (
+                    last_line[:-1]
+                    + [". ".join([last_line[-1], next_line[0]])]
+                    + next_line[1:]
+                )
             # Line break
             elif not re.match("\d{4}-\d{2}-\d{2}", line[0]):
                 last_line = fixed_lines[-1]
-                fixed_lines[-1] = last_line[:-1] + [". ".join([last_line[-1], line[0]])] + line[1:]
+                fixed_lines[-1] = (
+                    last_line[:-1] + [". ".join([last_line[-1], line[0]])] + line[1:]
+                )
             else:
                 fixed_lines.append(line)
 
@@ -105,7 +117,9 @@ class PreprocessClass:
     # Cleanup the dataframes
     # Remove unused columns
     @staticmethod
-    def remove_redundant_columns(df: pd.DataFrame, unneeded_columns: list = None) -> pd.DataFrame:
+    def remove_redundant_columns(
+        df: pd.DataFrame, unneeded_columns: list = None
+    ) -> pd.DataFrame:
         """Remove columns which do not hold any valuable information."""
         constant_columns = [col for col in df.columns if df[col].nunique() <= 1]
         redundant_columns = constant_columns + unneeded_columns
@@ -126,7 +140,9 @@ class PreprocessClass:
         time_col: str = "Set Timestamp",
     ):
         """Replace date and time column by one datetime column."""
-        df["Time"] = pd.to_datetime(df[date_col] + " " + df[time_col], format=format_string)
+        df["Time"] = pd.to_datetime(
+            df[date_col] + " " + df[time_col], format=format_string
+        )
         df_datetime = df.drop([date_col, time_col], axis=1)
         return df_datetime
 
@@ -159,7 +175,12 @@ class PreprocessClass:
         # Convert repetitions column from string to int
         df["Repetitions"] = df["Repetitions"].str.extract("(\d+)").astype(int)
         # Remove "kg" from weight column and convert from string to float
-        df["Weight"] = df["Weight"].str.extract("(\d+,\d+)").replace(",", ".", regex=True).astype(float)
+        df["Weight"] = (
+            df["Weight"]
+            .str.extract("(\d+,\d+)")
+            .replace(",", ".", regex=True)
+            .astype(float)
+        )
         return df
 
     def adapt_columns(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -174,9 +195,13 @@ class PreprocessClass:
         """Add Session Duration and Set Order column to gymbook df, to match progression df"""
         # Calculate workout time using time difference between first and last set for each day
         df["Session Duration (s)"] = (
-            df.groupby(df["Time"].dt.date)["Time"].transform(lambda x: x.max() - x.min()).dt.seconds
+            df.groupby(df["Time"].dt.date)["Time"]
+            .transform(lambda x: x.max() - x.min())
+            .dt.seconds
         )
-        df["Set Order"] = df.groupby([df["Time"].dt.date, "Exercise Name"]).cumcount() + 1
+        df["Set Order"] = (
+            df.groupby([df["Time"].dt.date, "Exercise Name"]).cumcount() + 1
+        )
         return df
 
     @staticmethod
@@ -198,7 +223,9 @@ class PreprocessClass:
         for exercise in map_plural_to_singular:
             for exception in plural_exceptions:
                 if exception in exercise:
-                    singular_replacement = exercise.replace(exception[:-2], exception[:-1])
+                    singular_replacement = exercise.replace(
+                        exception[:-2], exception[:-1]
+                    )
                     map_plural_to_singular[exercise] = singular_replacement
         return map_plural_to_singular
 
@@ -278,7 +305,9 @@ class PreprocessClass:
             "Machine Bench Press": "Seated Machine Bench Press",
         }
 
-        df["Exercise Name"] = df["Exercise Name"].replace(map_gymbook_plural_to_singular)
+        df["Exercise Name"] = df["Exercise Name"].replace(
+            map_gymbook_plural_to_singular
+        )
         df["Exercise Name"] = df["Exercise Name"].replace(map_gymbook_to_progression)
         df["Exercise Name"] = df["Exercise Name"].replace(map_progression_to_gymbook)
         df["Exercise Name"] = df["Exercise Name"].replace(map_rename_in_both)
@@ -290,8 +319,15 @@ class PreprocessClass:
             if not all(word.istitle() for word in exercise.split())
             and not any(word in exercise for word in ["and", "in", "with"])
         ]
-        capitalized_exercise_names = [exercise.title() for exercise in not_capitalized_exercise_names]
-        map_capitalize = {key: value for key, value in zip(not_capitalized_exercise_names, capitalized_exercise_names)}
+        capitalized_exercise_names = [
+            exercise.title() for exercise in not_capitalized_exercise_names
+        ]
+        map_capitalize = {
+            key: value
+            for key, value in zip(
+                not_capitalized_exercise_names, capitalized_exercise_names
+            )
+        }
         df["Exercise Name"] = df["Exercise Name"].replace(map_capitalize)
 
         return df
@@ -311,15 +347,26 @@ class PreprocessClass:
         df["Bereich"].replace(map_muscle_category_ger_eng, inplace=True)
         df["Bereich"].replace(np.nan, "Undefined", inplace=True)
 
-        exercises_without_category = set(df[df["Bereich"] == "Undefined"]["Exercise Name"])
+        exercises_without_category = set(
+            df[df["Bereich"] == "Undefined"]["Exercise Name"]
+        )
         exercises_with_category = set(df[df["Bereich"] != "Undefined"]["Exercise Name"])
         # Exercises which where mapped from gymbook to progression naming and did loose their Bereich
-        exercises_with_lost_category = exercises_with_category.intersection(exercises_without_category)
+        exercises_with_lost_category = exercises_with_category.intersection(
+            exercises_without_category
+        )
 
         for exercise in exercises_with_lost_category:
             # Get first (and only) element of set
-            muscle_category = next(iter(set(df[df["Exercise Name"] == exercise]["Bereich"]) - {"Undefined"}))
-            df.loc[(df["Exercise Name"] == exercise) & (df["Bereich"] == "Undefined"), "Bereich"] = muscle_category
+            muscle_category = next(
+                iter(
+                    set(df[df["Exercise Name"] == exercise]["Bereich"]) - {"Undefined"}
+                )
+            )
+            df.loc[
+                (df["Exercise Name"] == exercise) & (df["Bereich"] == "Undefined"),
+                "Bereich",
+            ] = muscle_category
 
         map_exercise_to_muscle = {
             "Abs": {"Crunch"},
@@ -386,7 +433,14 @@ class PreprocessClass:
     @staticmethod
     def add_exercise_category(df: pd.DataFrame) -> pd.DataFrame:
         map_exercise_to_type = {
-            "Barbell": {"Bar", "Box Squat", "Clean", "Ez-Bar", "Hexbar Deadlift", "Barbell"},
+            "Barbell": {
+                "Bar",
+                "Box Squat",
+                "Clean",
+                "Ez-Bar",
+                "Hexbar Deadlift",
+                "Barbell",
+            },
             "Bodyweight": {
                 "Ab",
                 "Burpee",
@@ -456,6 +510,30 @@ class PreprocessClass:
         df["Volume"] = df["Weight"] * df["Repetitions"]
         return df
 
+    @staticmethod
+    def clean_up_data(df: pd.DataFrame) -> pd.DataFrame:
+        """Remove and/or edit inplausible data"""
+        # Limit gym session duration
+        # Workout session of more than 3 hours must be a mistake
+        session_time_limit_s = 3 * 60 * 60
+        df_too_long = df[df["Session Duration (s)"] > session_time_limit_s]
+        # Find entry which differs greatly from the other entries
+        outlier = df_too_long[df_too_long["Time"].diff() > pd.Timedelta(hours=1)]
+        # Get the entry before, because...
+        outlier_id = outlier.index[0] - 1
+        # Remove outlier from dataframe
+        df = df.drop(outlier_id)
+        # Recalculate session duration
+        df_too_long = df[df["Session Duration (s)"] > session_time_limit_s]
+        df.loc[
+            df["Session Duration (s)"] > session_time_limit_s, "Session Duration (s)"
+        ] = (
+            df_too_long.groupby(df["Time"].dt.date)["Time"]
+            .transform(lambda x: x.max() - x.min())
+            .dt.seconds
+        )
+        return df
+
     def main(self):
         # Data file of Progression app (android)
         fixed_progression_csv = self.fix_progression_csv(self.progression_path)
@@ -477,12 +555,16 @@ class PreprocessClass:
             ],
         )
         # Before removing Set Duration, write the info in the repetitions columns, used for time-based exercises e.g. Plank
-        df_progression = self.remove_redundant_columns(df_progression, ["Time", "Set Duration (s)"])
+        df_progression = self.remove_redundant_columns(
+            df_progression, ["Time", "Set Duration (s)"]
+        )
 
         df_gymbook = self.adapt_columns(df_gymbook)
 
         # Convert and combine date / time columns into one datetime column
-        df_progression = self.merge_date_time_columns(df_progression, "%Y-%m-%d %H:%M:%S")
+        df_progression = self.merge_date_time_columns(
+            df_progression, "%Y-%m-%d %H:%M:%S"
+        )
         df_gymbook = self.merge_date_time_columns(df_gymbook, "%d.%m.%Y %H:%M")
 
         df_gymbook = self.extend_gymbook_df(df_gymbook)
@@ -498,8 +580,8 @@ class PreprocessClass:
 
         df = self.add_other_stuff(df)
         df = df.sort_values("Time").reset_index(drop=True)
+        df = self.clean_up_data(df)
         df.index = df["Time"]
-        # df.drop("Time", axis=1, inplace=True)
 
         df_bodyweight = self.get_body_weight_dataframe()
 
@@ -517,6 +599,8 @@ class PreprocessClass:
         df_weight_new = df_weight_new.rename(columns={"WEIGHT (kg)": "Weight"})
 
         df_weight = pd.concat([df_weight_old, df_weight_new])
-        df_weight["Time"] = pd.to_datetime(df_weight["Time"], format="%Y-%m-%d %H:%M:%S")
+        df_weight["Time"] = pd.to_datetime(
+            df_weight["Time"], format="%Y-%m-%d %H:%M:%S"
+        )
 
         return df_weight
