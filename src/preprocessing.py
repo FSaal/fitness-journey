@@ -3,6 +3,7 @@ import csv
 import re
 from pathlib import Path
 import numpy as np
+import json
 
 
 class PreprocessClass:
@@ -10,15 +11,17 @@ class PreprocessClass:
         self,
         gymbook_path: str,
         progression_path: str,
-        weight1_path: str,
-        weight2_path: str,
+        weight_myfitnesspal_path: str,
+        weight_eufy_path: str,
+        weight_google_fit_path: str,
     ):
         self.progression_path = Path(progression_path)
         self.gymbook_path = Path(gymbook_path)
         self.PROGRESSION_NAME = "progression"
         self.GYMBOOK_NAME = "gymbook"
-        self.weight_path = Path(weight1_path)
-        self.weight2_path = Path(weight2_path)
+        self.weight_myfitnesspal_path = Path(weight_myfitnesspal_path)
+        self.weight_eufy_path = Path(weight_eufy_path)
+        self.weight_google_fit_path = Path(weight_google_fit_path)
 
     def fix_progression_csv(self, input_file_path: Path, output_file_path=None) -> Path:
         """Makes the progression csv readable and returns the path to the fixed csv"""
@@ -532,6 +535,9 @@ class PreprocessClass:
             .transform(lambda x: x.max() - x.min())
             .dt.seconds
         )
+
+        # Replace NaNs of column Set Comment with empty string
+        df["Set Comment"].fillna("None", inplace=True)
         return df
 
     def main(self):
@@ -582,6 +588,8 @@ class PreprocessClass:
         df = df.sort_values("Time").reset_index(drop=True)
         df = self.clean_up_data(df)
         df.index = df["Time"]
+        # Rename index to Time
+        df.index.name = "Time"
 
         df_bodyweight = self.get_body_weight_dataframe()
 
@@ -589,18 +597,34 @@ class PreprocessClass:
 
     def get_body_weight_dataframe(self):
         # Old data export from myFitnessPal
-        df_weight_old = pd.read_csv(self.weight_path, delimiter=";")
+        df_weight_old = pd.read_csv(self.weight_myfitnesspal_path, delimiter=";")
         # Add a time to the date
         df_weight_old["Time"] = df_weight_old["Date"] + " 09:00:00"
         df_weight_old = df_weight_old.drop("Date", axis=1)
 
         # New data export from Eufy Smart Scale
-        df_weight_new = pd.read_csv(self.weight2_path)
+        df_weight_new = pd.read_csv(self.weight_eufy_path)
         df_weight_new = df_weight_new.rename(columns={"WEIGHT (kg)": "Weight"})
+
+        # Newest data export from Google Fit (since Eufy export is broken)
+        with open(self.weight_google_fit_path, "r") as f:
+            google_fit_data = json.load(f)
+        df_weight_newest = pd.DataFrame(google_fit_data["Data Points"])
+        df_weight_newest["Time"] = pd.to_datetime(
+            df_weight_newest["startTimeNanos"] / 1e9, unit="s"
+        )
+        # df_weight_newest = df_weight_newest.set_index("Time")
+        df_weight_newest["Weight"] = df_weight_newest["fitValue"].apply(
+            lambda x: x[0]["value"]["fpVal"]
+        )
+        # df_weight_newest = df_weight_newest["Weight"]
 
         df_weight = pd.concat([df_weight_old, df_weight_new])
         df_weight["Time"] = pd.to_datetime(
             df_weight["Time"], format="%Y-%m-%d %H:%M:%S"
         )
+        # Sort by time
+        df_weight = df_weight.sort_values("Time")
+        df_weight = df_weight.reset_index(drop=True)
 
         return df_weight
