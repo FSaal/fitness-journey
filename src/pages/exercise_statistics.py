@@ -3,8 +3,34 @@ from dash_iconify import DashIconify
 from dash import dcc, html, Output, Input, callback
 import plotly.express as px
 import pandas as pd
+import plotly.graph_objects as go
 
 from utils.common_functions import plot_placeholder
+
+
+def get_bodyweight_figure(df_weight):
+    fig = px.scatter(
+        df_weight,
+        x="Time",
+        y="Weight",
+        title="Bodyweight",
+        trendline="lowess",
+        trendline_options=dict(frac=0.1),
+    )
+    fig.add_hline(
+        y=66,
+        line_dash="dash",
+        line_width=0.5,
+        annotation_text="66 kg Weight Class",
+        annotation_position="bottom left",
+    )
+    fig.add_hline(
+        y=74,
+        line_dash="dot",
+        annotation_text="74 kg Weight Class",
+        annotation_position="bottom left",
+    )
+    return fig
 
 
 def exercise_content(app, df, df_weight):
@@ -49,44 +75,34 @@ def exercise_content(app, df, df_weight):
                 children=[
                     dmc.Col(
                         dmc.Paper(
-                            dcc.Graph(id="graph-weight-by-exercise"), shadow="xs"
+                            dcc.Graph(id="graph-weight-by-exercise"), shadow="md"
                         ),
                         span=12,
                     ),
                     dmc.Col(
                         dmc.Paper(
-                            dcc.Graph(id="graph-volume-by-exercise"), shadow="xs"
+                            dcc.Graph(id="graph-volume-by-exercise"), shadow="md"
                         ),
                         span=6,
                     ),
                     dmc.Col(
-                        dmc.Paper(dcc.Graph(id="graph-1rm-by-exercise"), shadow="xs"),
+                        dmc.Paper(dcc.Graph(id="graph-1rm-by-exercise"), shadow="md"),
                         span=6,
                     ),
                     dmc.Col(
-                        dmc.Paper(dcc.Graph(id="graph-day-by-exercise"), shadow="xs"),
+                        dmc.Paper(dcc.Graph(id="graph-day-by-exercise"), shadow="md"),
                         span=6,
                     ),
                     dmc.Col(
                         dmc.Paper(
-                            dcc.Graph(id="graph-days-trained-by-exercise"), shadow="xs"
+                            dcc.Graph(id="graph-days-trained-by-exercise"), shadow="md"
                         ),
                         span=6,
                     ),
                 ],
                 justify="flex-end",
             ),
-            dcc.Graph(
-                id="graph-bodyweight",
-                figure=px.scatter(
-                    df_weight,
-                    y="Weight",
-                    title="Bodyweight",
-                    trendline="lowess",
-                    trendline_options=dict(frac=0.1),
-                ),
-            ),
-            # dash_table.DataTable(df_comments.to_dict("records")),
+            dcc.Graph(id="graph-bodyweight", figure=get_bodyweight_figure(df_weight)),
         ]
     )
 
@@ -202,28 +218,54 @@ def get_callbacks(app, df, df_weight):
             color="Repetitions",
             range_color=color_scale_range,
             size="Volume",
-            hover_data=["Set Comment"],
+            custom_data=["Set Comment"],
             title="Weight Progression",
         )
-        figure_weight.update_layout(yaxis_title="Weight [kg]", hovermode="x")
+        figure_weight.update_layout(yaxis_title="Weight [kg]")
+        figure_weight.update(
+            data=[
+                {
+                    "customdata": df_filtered_exercise["Set Comment"],
+                    "hovertemplate": "Time: %{x}<br>Weight: %{y} kg<br>Receptions: %{marker.color}<br>Volume: %{marker.size} kg<br>Set Comment: %{customdata}",
+                }
+            ]
+        )
         # TODO: Change hoverup layout (e.g. add kg at the end of weight and volume)
 
         # Plot - Estimated 1RM over time
         # 1RM Formula is only accurate up to about 12 reps
-        max_reps = 12
-        df_filtered_exercise_reps = df_filtered_exercise[
+        max_reps = 5
+        df_filtered_exercise_reliable_reps = df_filtered_exercise[
             df_filtered_exercise["Repetitions"] < max_reps
         ]
-        one_rm = df_filtered_exercise_reps["Weight"] / (
-            1.0278 - (0.0278) * df_filtered_exercise_reps["Repetitions"]
+        df_filtered_exercise_unreliable_reps = df_filtered_exercise[
+            (df_filtered_exercise["Repetitions"] > max_reps)
+            & (df_filtered_exercise["Repetitions"] < 20)
+        ]
+        one_rm = df_filtered_exercise_reliable_reps["Weight"] / (
+            1.0278 - (0.0278) * df_filtered_exercise_reliable_reps["Repetitions"]
+        )
+        one_rm_unreliable = df_filtered_exercise_unreliable_reps["Weight"] / (
+            1.0278 - (0.0278) * df_filtered_exercise_unreliable_reps["Repetitions"]
         )
         figure_1rm = px.scatter(
-            df_filtered_exercise_reps,
+            df_filtered_exercise_reliable_reps,
             x="Time",
             y=one_rm,
             color="Repetitions",
             range_color=color_scale_range,
             title="Estimated 1RM (only accurate up to 5 reps)",
+        )
+        figure_1rm.add_trace(
+            go.Scatter(
+                x=df_filtered_exercise_unreliable_reps["Time"],
+                y=one_rm_unreliable,
+                mode="markers",
+                # Make markers diamonds
+                marker=dict(symbol="diamond", size=10, color="red"),
+                # Add hoverup data with info about repetitions and weight
+                hovertemplate="Repetitions: %{x}<br>Weight: %{y}",
+            )
         )
         figure_1rm.update_layout(yaxis_title="Weight [kg]")
         # TODO: Change marker type for points with Repetions > 5 to 'diamond'
