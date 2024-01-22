@@ -12,9 +12,16 @@ app = Dash(__name__)
 
 progression_path = r"data\2024-01-21 18 02 06.csv"
 gymbook_path = r"data\GymBook-Logs-2023-04-08.csv"
-weight1_path = r"data\weight.csv"
-weight2_path = r"data\weight_Felix_1694877519.csv"
-preprocess = PreprocessClass(gymbook_path, progression_path, weight1_path, weight2_path)
+weight_myfitnesspal_path = r"data\weight.csv"
+weight_eufy_path = r"data\weight_Felix_1694877519.csv"
+weight_googlefit_path = r"data\derived_com.google.weight_com.google.android.g.json"
+preprocess = PreprocessClass(
+    gymbook_path,
+    progression_path,
+    weight_myfitnesspal_path,
+    weight_eufy_path,
+    weight_googlefit_path,
+)
 df, df_weight = preprocess.main()
 
 
@@ -91,13 +98,13 @@ content = html.Div(
                     [
                         dmc.Tab("Exercise", value="exercise"),
                         dmc.Tab("Powerlifting Headquarter", value="powerlifting"),
-                        dmc.Tab("Timely", value="settings"),
+                        dmc.Tab("Timely", value="time"),
                         dmc.Tab("Data Playground", value="playground"),
                     ],
                 ),
                 dmc.TabsPanel(exercise_content(app, df, df_weight), value="exercise"),
                 dmc.TabsPanel(powerlifting_content(df), value="powerlifting"),
-                dmc.TabsPanel(timely_content(df), value="settings"),
+                dmc.TabsPanel(timely_content(df), value="time"),
                 dmc.TabsPanel(playground(df), value="playground"),
             ],
             value="exercise",
