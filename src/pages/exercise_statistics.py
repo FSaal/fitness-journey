@@ -11,33 +11,7 @@ from dash_iconify import DashIconify
 from utils.common_functions import plot_placeholder
 
 
-def get_bodyweight_figure(df_weight):
-    # TODO: All
-    fig = px.scatter(
-        df_weight,
-        x="Time",
-        y="Weight",
-        title="Bodyweight",
-        trendline="lowess",
-        trendline_options={"frac": 0.1},
-    )
-    fig.add_hline(
-        y=66,
-        line_dash="dash",
-        line_width=0.5,
-        annotation_text="66 kg Weight Class",
-        annotation_position="bottom left",
-    )
-    fig.add_hline(
-        y=74,
-        line_dash="dot",
-        annotation_text="74 kg Weight Class",
-        annotation_position="bottom left",
-    )
-    return fig
-
-
-def exercise_content(app, df: pd.DataFrame, df_weight: pd.DataFrame) -> dmc.Stack:
+def exercise_content(app, df: pd.DataFrame) -> dmc.Stack:
     get_callbacks(app, df)
     layout = dmc.Stack(
         [
@@ -46,15 +20,11 @@ def exercise_content(app, df: pd.DataFrame, df_weight: pd.DataFrame) -> dmc.Stac
             dmc.Grid(
                 children=[
                     dmc.Col(
-                        dmc.Paper(
-                            dcc.Graph(id="graph-weight-by-exercise"), shadow="md"
-                        ),
+                        dmc.Paper(dcc.Graph(id="graph-weight-by-exercise"), shadow="md"),
                         span=12,
                     ),
                     dmc.Col(
-                        dmc.Paper(
-                            dcc.Graph(id="graph-volume-by-exercise"), shadow="md"
-                        ),
+                        dmc.Paper(dcc.Graph(id="graph-volume-by-exercise"), shadow="md"),
                         span=6,
                     ),
                     dmc.Col(
@@ -66,15 +36,12 @@ def exercise_content(app, df: pd.DataFrame, df_weight: pd.DataFrame) -> dmc.Stac
                         span=6,
                     ),
                     dmc.Col(
-                        dmc.Paper(
-                            dcc.Graph(id="graph-days-trained-by-exercise"), shadow="md"
-                        ),
+                        dmc.Paper(dcc.Graph(id="graph-days-trained-by-exercise"), shadow="md"),
                         span=6,
                     ),
                 ],
                 justify="flex-end",
             ),
-            dcc.Graph(id="graph-bodyweight", figure=get_bodyweight_figure(df_weight)),
         ]
     )
     return layout
@@ -172,9 +139,7 @@ def get_callbacks(app, df):
         Input("dropdown-muscle-group", "value"),
         Input("dropdown-exercise-type", "value"),
     )
-    def filter_exercise_by_musclegroup(
-        muscle_group: str, exercise_type: str
-    ) -> list[str]:
+    def filter_exercise_by_musclegroup(muscle_group: str, exercise_type: str) -> list[str]:
         """Update selectable exercises in sidebar,
         dependent on selected exercise type and muscle category."""
         # Do not filter, if no exercise type or muscle group is selected
@@ -200,36 +165,18 @@ def get_callbacks(app, df):
         if date_range:
             start_date, end_date = pd.to_datetime(date_range)
             df_filtered_exercise = df_filtered_exercise[
-                (df_filtered_exercise.index >= start_date)
-                & (df_filtered_exercise.index <= end_date)
+                (df_filtered_exercise.index >= start_date) & (df_filtered_exercise.index <= end_date)
             ]
         if show_only_commented_sets:
-            df_filtered_exercise = df_filtered_exercise[
-                df_filtered_exercise["Set Comment"] != "None"
-            ]
+            df_filtered_exercise = df_filtered_exercise[df_filtered_exercise["Set Comment"] != "None"]
         return df_filtered_exercise
 
     @callback(
-        [
-            Output(f"badge-min-{category}-by-exercise", "children")
-            for category in ["weight", "sets", "reps", "rest"]
-        ],
-        [
-            Output(f"badge-max-{category}-by-exercise", "children")
-            for category in ["weight", "sets", "reps", "rest"]
-        ],
-        [
-            Output(f"text-median-{category}-by-exercise", "children")
-            for category in ["weight", "sets", "reps", "rest"]
-        ],
-        [
-            Output(f"tooltip-min-{category}-by-exercise", "label")
-            for category in ["weight", "sets", "reps", "rest"]
-        ],
-        [
-            Output(f"tooltip-max-{category}-by-exercise", "label")
-            for category in ["weight", "sets", "reps", "rest"]
-        ],
+        [Output(f"badge-min-{category}-by-exercise", "children") for category in ["weight", "sets", "reps", "rest"]],
+        [Output(f"badge-max-{category}-by-exercise", "children") for category in ["weight", "sets", "reps", "rest"]],
+        [Output(f"text-median-{category}-by-exercise", "children") for category in ["weight", "sets", "reps", "rest"]],
+        [Output(f"tooltip-min-{category}-by-exercise", "label") for category in ["weight", "sets", "reps", "rest"]],
+        [Output(f"tooltip-max-{category}-by-exercise", "label") for category in ["weight", "sets", "reps", "rest"]],
         Input("dropdown-exercise", "value"),
     )
     def stats_by_exercise(exercise: str) -> tuple([str] * 12):
@@ -242,21 +189,15 @@ def get_callbacks(app, df):
         avg_set_time_per_date = calculate_avg_set_time(df_filtered_exercise)
 
         columns = ["Weight", "Set Order", "Repetitions"]
-        number_statistics = df_filtered_exercise.agg(
-            {key: ["min", "max", "median"] for key in columns}
-        )
+        number_statistics = df_filtered_exercise.agg({key: ["min", "max", "median"] for key in columns})
         # Set Time must be calculated separately, because it is grouped by date
         # and thus not the same length as the original dataframe
-        number_statistics["Set Time"] = avg_set_time_per_date.agg(
-            ["min", "max", "median"]
-        ).astype(int)
+        number_statistics["Set Time"] = avg_set_time_per_date.agg(["min", "max", "median"]).astype(int)
 
         # Calculate the Time when the min or max values where observed
         time_statistics = {}
         for column in columns:
-            time_statistics[column] = df_filtered_exercise[column].agg(
-                ["idxmin", "idxmax"]
-            )
+            time_statistics[column] = df_filtered_exercise[column].agg(["idxmin", "idxmax"])
         time_statistics["Set Time"] = avg_set_time_per_date.agg(["idxmin", "idxmax"])
         time_statistics = pd.DataFrame(time_statistics)
 
@@ -272,9 +213,7 @@ def get_callbacks(app, df):
         """Calculate the average time between sets for each date."""
         # TODO: Logic Flaw - this is not the rest time, but the rest time + exercise time
         stats_per_date = df.groupby(df.index.date)["Time"].agg(["min", "max", "count"])
-        time_difference = (
-            stats_per_date["max"] - stats_per_date["min"]
-        ).dt.total_seconds()
+        time_difference = (stats_per_date["max"] - stats_per_date["min"]).dt.total_seconds()
         # Remove days with zero rest time, either due to only one set that day or data added after training
         stats_per_date = stats_per_date[time_difference > 0]
         avg_set_time_per_date = time_difference / stats_per_date["count"]
@@ -290,13 +229,9 @@ def get_callbacks(app, df):
         Input("date-range-picker", "value"),
         Input("switch-show-comments", "checked"),
     )
-    def graph_by_exercise(
-        exercise: str, date_range: None | list[str], show_only_comment_sets: bool
-    ):
+    def graph_by_exercise(exercise: str, date_range: None | list[str], show_only_comment_sets: bool):
         """Different exercise specific plots over time. Such as weight, volume or 1rm."""
-        df_filtered_exercise = filter_exercise_data(
-            df, exercise, date_range, show_only_comment_sets
-        )
+        df_filtered_exercise = filter_exercise_data(df, exercise, date_range, show_only_comment_sets)
 
         if df_filtered_exercise.empty:
             empty_message = plot_placeholder(exercise)
@@ -359,12 +294,8 @@ def get_callbacks(app, df):
         df_reliable = df[df["Repetitions"] <= max_reps]
         # 1RM for more than 20 reps is not reliable at all - ignore
         df_unreliable = df[(df["Repetitions"] > max_reps) & (df["Repetitions"] < 20)]
-        one_rm = df_reliable["Weight"] / (
-            1.0278 - (0.0278) * df_reliable["Repetitions"]
-        )
-        one_rm_unreliable = df_unreliable["Weight"] / (
-            1.0278 - (0.0278) * df_unreliable["Repetitions"]
-        )
+        one_rm = df_reliable["Weight"] / (1.0278 - (0.0278) * df_reliable["Repetitions"])
+        one_rm_unreliable = df_unreliable["Weight"] / (1.0278 - (0.0278) * df_unreliable["Repetitions"])
         figure_1rm = px.scatter(
             df_reliable,
             x="Time",
@@ -455,14 +386,10 @@ def get_callbacks(app, df):
             categories=list(weekday_map.values()),
         )
         figure_weekday = px.histogram(weekdays.sort_values(), title="Training Days")
-        figure_weekday.update_layout(
-            xaxis_title="Weekday", yaxis_title="Training Days", showlegend=False
-        )
+        figure_weekday.update_layout(xaxis_title="Weekday", yaxis_title="Training Days", showlegend=False)
         return figure_weekday
 
-    def plot_frequent_time(
-        df: pd.DataFrame, weekday_map: dict[int, str]
-    ) -> go.Figure():
+    def plot_frequent_time(df: pd.DataFrame, weekday_map: dict[int, str]) -> go.Figure():
         """Plot favorite training time.
         Each performed set in a 1 hour block increases the counter."""
         figure_time_heatmap = px.density_heatmap(
