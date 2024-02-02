@@ -1,10 +1,12 @@
-import plotly.express as px
 import dash_mantine_components as dmc
-from dash_iconify import DashIconify
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
 from dash import dcc
+from dash_iconify import DashIconify
 
 
-def powerlifting_content(df):
+def powerlifting_content(df: pd.DataFrame, df_weight: pd.DataFrame) -> dmc.Paper:
     """
     This function returns a Dash component containing a scatter plot of powerlifting exercises.
     """
@@ -14,17 +16,26 @@ def powerlifting_content(df):
         "Barbell Deadlift",
     ]
     df_powerlifting = df[df["Exercise Name"].isin(powerlifting_exercises)]
-    fig = px.scatter(
-        df_powerlifting,
-        y="Weight",
-        color="Exercise Name",
-        symbol="Exercise Name",
-        hover_name="Repetitions",
-    )
-    fig.update_xaxes(title_text="Time")
-    fig.update_yaxes(title_text="Weight [kg]")
-    fig.update_layout(title_text="Powerlifting Exercises", title_x=0.5)
+    # Reset exercise categories
+    df_powerlifting["Exercise Name"] = df_powerlifting["Exercise Name"].cat.remove_unused_categories()
+    fig = get_plot(df_powerlifting)
 
+    strength_cards = get_card_overview(df, powerlifting_exercises)
+    strength_cards = dmc.Group(strength_cards, spacing="md")
+
+    figure_bodyweight = get_bodyweight_figure(df_weight)
+
+    layout = dmc.Paper(
+        [
+            dcc.Graph(figure=fig),
+            strength_cards,
+            dcc.Graph(figure=figure_bodyweight),
+        ]
+    )
+    return layout
+
+
+def get_card_overview(df, powerlifting_exercises):
     strength_cards = []
     exercise_icons = []
     for exercise in powerlifting_exercises:
@@ -47,9 +58,29 @@ def powerlifting_content(df):
                 "pajamas:weight",
             )
         )
-    strength_cards = dmc.Group(strength_cards, spacing="md")
 
-    return dmc.Paper([dcc.Graph(figure=fig), strength_cards])
+    return strength_cards
+
+
+def get_plot(df: pd.DataFrame) -> go.Figure:
+    fig = px.scatter(
+        df,
+        x="Time",
+        y="Weight",
+        color="Exercise Name",
+        symbol="Exercise Name",
+        hover_data={"Repetitions": True},
+    )
+    fig.update_layout(yaxis_title="Weight [kg]", title_text="Powerlifting Exercises")
+    # fig.update(
+    #     data=[
+    #         {
+    #             "customdata": df_powerlifting["Repetitions"],
+    #             "hovertemplate": "Time: %{x}<br>Weight: %{y} kg<br>Repetitions: %{customdata}",
+    #         }
+    #     ]
+    # )
+    return fig
 
 
 def calculate_wilks_score():
@@ -71,9 +102,7 @@ def strength_card(exercise, weight, date, total_reps, total_weight, icon, icon_s
                     dmc.Group(
                         [
                             dmc.Text(children=weight, weight=500, size="xl"),
-                            dmc.Text(
-                                children=date, color="dimmed", size="sm", align="right"
-                            ),
+                            dmc.Text(children=date, color="dimmed", size="sm", align="right"),
                         ]
                     ),
                     dmc.Group(
@@ -88,3 +117,29 @@ def strength_card(exercise, weight, date, total_reps, total_weight, icon, icon_s
         ],
         shadow="sm",
     )
+
+
+def get_bodyweight_figure(df_weight):
+    # TODO: All
+    fig = px.scatter(
+        df_weight,
+        x="Time",
+        y="Weight",
+        title="Bodyweight",
+        trendline="lowess",
+        trendline_options={"frac": 0.1},
+    )
+    fig.add_hline(
+        y=66,
+        line_dash="dash",
+        line_width=0.5,
+        annotation_text="66 kg Weight Class",
+        annotation_position="bottom left",
+    )
+    fig.add_hline(
+        y=74,
+        line_dash="dot",
+        annotation_text="74 kg Weight Class",
+        annotation_position="bottom left",
+    )
+    return fig
