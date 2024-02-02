@@ -4,8 +4,9 @@ from dash_iconify import DashIconify
 
 from pages.exercise_statistics import exercise_content
 from pages.general_statistics import timely_content
-from pages.powerlifting_statistics import powerlifting_content
 from pages.playground import playground
+from pages.powerlifting_statistics import powerlifting_content
+from pages.program_statistics import program_content
 from preprocessing import PreprocessClass
 
 app = Dash(__name__)
@@ -57,9 +58,7 @@ sidebar = dmc.Aside(
                 data=sorted(set(df["Exercise Type"])),
                 label="Exercise Type",
                 clearable=True,
-                icon=DashIconify(
-                    icon="material-symbols:exercise-outline", color="blue", width=17
-                ),
+                icon=DashIconify(icon="material-symbols:exercise-outline", color="blue", width=17),
                 description="Filter exercises by exercise type",
             ),
             dmc.Select(
@@ -67,9 +66,7 @@ sidebar = dmc.Aside(
                 data=sorted(set(df["Exercise Name"])),
                 label="Exercise",
                 value="Barbell Squat",
-                icon=DashIconify(
-                    icon="healthicons:exercise-weights", color="blue", width=20
-                ),
+                icon=DashIconify(icon="healthicons:exercise-weights", color="blue", width=20),
                 nothingFound="Exercise not found",
                 description="Plot",
                 placeholder="Enter or select an exercise",
@@ -98,12 +95,14 @@ content = html.Div(
                     [
                         dmc.Tab("Exercise", value="exercise"),
                         dmc.Tab("Powerlifting Headquarter", value="powerlifting"),
+                        dmc.Tab("Program Statistics", value="program"),
                         dmc.Tab("Timely", value="time"),
                         dmc.Tab("Data Playground", value="playground"),
                     ],
                 ),
-                dmc.TabsPanel(exercise_content(app, df, df_weight), value="exercise"),
-                dmc.TabsPanel(powerlifting_content(df), value="powerlifting"),
+                dmc.TabsPanel(exercise_content(app, df), value="exercise"),
+                dmc.TabsPanel(powerlifting_content(df, df_weight), value="powerlifting"),
+                dmc.TabsPanel(program_content(df, df_weight), value="program"),
                 dmc.TabsPanel(timely_content(df), value="time"),
                 dmc.TabsPanel(playground(df), value="playground"),
             ],
