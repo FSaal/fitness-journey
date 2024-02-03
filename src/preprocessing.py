@@ -122,7 +122,7 @@ class PreprocessClass:
 
         if "Set Duration (s)" in redundant_columns:
             # Before removing Set Duration, write the info in the repetitions columns, used for time-based exercises e.g. Plank
-            df["Repetitions"].fillna(df["Set Duration (s)"], inplace=True)
+            df["Repetitions"] = df["Repetitions"].fillna(df["Set Duration (s)"])
 
         df_compact = df.drop(redundant_columns, axis=1, errors="ignore")
         # print(f"Removed columns {redundant_columns}")
@@ -318,8 +318,7 @@ class PreprocessClass:
             "Rücken": "Back",
             "Schultern": "Shoulders",
         }
-        df["Bereich"].replace(map_muscle_category_ger_eng, inplace=True)
-        df["Bereich"].replace(np.nan, "Undefined", inplace=True)
+        df["Bereich"] = df["Bereich"].replace(map_muscle_category_ger_eng).fillna("Undefined")
 
         exercises_without_category = set(df[df["Bereich"] == "Undefined"]["Exercise Name"])
         exercises_with_category = set(df[df["Bereich"] != "Undefined"]["Exercise Name"])
@@ -496,7 +495,7 @@ class PreprocessClass:
         )
 
         # Replace NaNs of column Set Comment with empty string
-        df["Set Comment"].fillna("None", inplace=True)
+        df["Set Comment"] = df["Set Comment"].fillna("None")
         return df
 
     def main(self):

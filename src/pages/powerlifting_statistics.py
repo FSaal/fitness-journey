@@ -17,7 +17,7 @@ def powerlifting_content(df: pd.DataFrame, df_weight: pd.DataFrame) -> dmc.Paper
     ]
     df_powerlifting = df[df["Exercise Name"].isin(powerlifting_exercises)]
     # Reset exercise categories
-    df_powerlifting["Exercise Name"] = df_powerlifting["Exercise Name"].cat.remove_unused_categories()
+    df_powerlifting.loc[:, "Exercise Name"] = df_powerlifting["Exercise Name"].cat.remove_unused_categories()
     fig = get_plot(df_powerlifting)
 
     strength_cards = get_card_overview(df, powerlifting_exercises)
@@ -43,7 +43,7 @@ def get_card_overview(df, powerlifting_exercises):
         # Information about PR
         record_idx = df_exercise["Weight"].argmax()
         record_date = df_exercise.index[record_idx].strftime("%d.%m.%y")
-        record = df_exercise["Weight"][record_idx]
+        record = df_exercise["Weight"].iloc[record_idx]
 
         total_reps = df_exercise["Repetitions"].sum()
         # Total weight in tonnes
