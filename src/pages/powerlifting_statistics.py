@@ -6,7 +6,7 @@ from dash import dcc
 from dash_iconify import DashIconify
 
 
-def powerlifting_content(df: pd.DataFrame, df_weight: pd.DataFrame) -> dmc.Paper:
+def powerlifting_layout(df: pd.DataFrame, df_weight: pd.DataFrame) -> dmc.Stack:
     """
     This function returns a Dash component containing a scatter plot of powerlifting exercises.
     """
@@ -16,20 +16,18 @@ def powerlifting_content(df: pd.DataFrame, df_weight: pd.DataFrame) -> dmc.Paper
         "Barbell Deadlift",
     ]
     df_powerlifting = df[df["Exercise Name"].isin(powerlifting_exercises)]
-    # Reset exercise categories
-    df_powerlifting.loc[:, "Exercise Name"] = df_powerlifting["Exercise Name"].cat.remove_unused_categories()
     fig = get_plot(df_powerlifting)
 
     strength_cards = get_card_overview(df, powerlifting_exercises)
-    strength_cards = dmc.Group(strength_cards, spacing="md")
+    strength_cards = dmc.Group(strength_cards, spacing="xl")
 
     figure_bodyweight = get_bodyweight_figure(df_weight)
 
-    layout = dmc.Paper(
+    layout = dmc.Stack(
         [
-            dcc.Graph(figure=fig),
-            strength_cards,
-            dcc.Graph(figure=figure_bodyweight),
+            dmc.Center(strength_cards),
+            dmc.Paper(dcc.Graph(figure=fig), shadow="md"),
+            dmc.Paper(dcc.Graph(figure=figure_bodyweight), shadow="md"),
         ]
     )
     return layout
@@ -38,12 +36,14 @@ def powerlifting_content(df: pd.DataFrame, df_weight: pd.DataFrame) -> dmc.Paper
 def get_card_overview(df, powerlifting_exercises):
     strength_cards = []
     exercise_icons = []
+    powerlifting_total = 0
     for exercise in powerlifting_exercises:
         df_exercise = df[df["Exercise Name"] == exercise]
         # Information about PR
         record_idx = df_exercise["Weight"].argmax()
         record_date = df_exercise.index[record_idx].strftime("%d.%m.%y")
-        record = df_exercise["Weight"].iloc[record_idx]
+        record_weight = df_exercise["Weight"].iloc[record_idx]
+        powerlifting_total += record_weight
 
         total_reps = df_exercise["Repetitions"].sum()
         # Total weight in tonnes
@@ -51,13 +51,28 @@ def get_card_overview(df, powerlifting_exercises):
         strength_cards.append(
             strength_card(
                 exercise.split(" ")[1],
-                record,
+                record_weight,
                 record_date,
                 total_reps,
                 total_weight,
                 "pajamas:weight",
             )
         )
+
+    powerlifting_total_lbs = powerlifting_total * 2.20462
+    total_card = dmc.Card(
+        children=[
+            dmc.Group(
+                [
+                    dmc.Text("Total", weight=700, size="xl"),
+                    dmc.Text(
+                        f"{powerlifting_total:.0f} kg\n({powerlifting_total_lbs:.0f} lbs)",
+                    ),
+                ]
+            )
+        ]
+    )
+    strength_cards.append(total_card)
 
     return strength_cards
 
@@ -69,17 +84,16 @@ def get_plot(df: pd.DataFrame) -> go.Figure:
         y="Weight",
         color="Exercise Name",
         symbol="Exercise Name",
-        hover_data={"Repetitions": True},
     )
     fig.update_layout(yaxis_title="Weight [kg]", title_text="Powerlifting Exercises")
-    # fig.update(
-    #     data=[
-    #         {
-    #             "customdata": df_powerlifting["Repetitions"],
-    #             "hovertemplate": "Time: %{x}<br>Weight: %{y} kg<br>Repetitions: %{customdata}",
-    #         }
-    #     ]
-    # )
+    fig.update(
+        data=[
+            {
+                "customdata": df["Repetitions"],
+                "hovertemplate": "Time: %{x}<br>Weight: %{y} kg<br>Repetitions: %{customdata}",
+            }
+        ]
+    )
     return fig
 
 
