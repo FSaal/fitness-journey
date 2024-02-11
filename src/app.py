@@ -1,169 +1,40 @@
+import dash_loading_spinners
 import dash_mantine_components as dmc
-from dash import Dash, Input, Output, State, callback, dash_table, dcc, html
-from dash_iconify import DashIconify
-
-from pages.exercise_statistics import exercise_content
-from pages.general_statistics import timely_content
-from pages.playground import playground
-from pages.powerlifting_statistics import powerlifting_content
-from pages.program_statistics import program_content
+from components.header import header
+from components.sidebar import SIDEBAR_HIDDEN_STYLE, SIDEBAR_VISIBLE_STYLE, get_sidebar
+from dash import Dash, Input, Output, State, callback, html
+from dash.exceptions import PreventUpdate
+from exercise_compendium import exercise_compendium
+from pages.exercise_statistics import exercise_layout
+from pages.general_statistics import time_layout
+from pages.playground import playground_layout
+from pages.powerlifting_statistics import powerlifting_layout
+from pages.program_statistics import program_layout
 from preprocessing import PreprocessClass
 
 app = Dash(__name__)
 
-progression_path = r"data\2024-01-21 18 02 06.csv"
-gymbook_path = r"data\GymBook-Logs-2023-04-08.csv"
-weight_myfitnesspal_path = r"data\weight.csv"
-weight_eufy_path = r"data\weight_Felix_1694877519.csv"
-weight_googlefit_path = r"data\derived_com.google.weight_com.google.android.g.json"
-preprocess = PreprocessClass(
-    gymbook_path,
-    progression_path,
-    weight_myfitnesspal_path,
-    weight_eufy_path,
-    weight_googlefit_path,
-)
-df, df_weight = preprocess.main()
+
+def load_data():
+    """Load data and preprocess it"""
+    progression_path = r"data\2024-01-21 18 02 06.csv"
+    gymbook_path = r"data\GymBook-Logs-2023-04-08.csv"
+    weight_myfitnesspal_path = r"data\weight.csv"
+    weight_eufy_path = r"data\weight_Felix_1707336212.csv"
+    preprocess = PreprocessClass(
+        gymbook_path,
+        progression_path,
+        weight_myfitnesspal_path,
+        weight_eufy_path,
+    )
+    df, df_weight = preprocess.main()
+    return df, df_weight
 
 
-header = dmc.Header(
-    height=50,
-    fixed=True,
-    children=[
-        dmc.Group(
-            [
-                dmc.Burger(id="button-toggle-sidebar", opened=True),
-                dmc.Title("Fitness", align="center"),
-            ]
-        )
-    ],
-)
-
-sidebar = dmc.Aside(
-    id="sidebar",
-    children=dmc.Stack(
-        [
-            dmc.Title("Plots by Exercise", color="white"),
-            dmc.Text("Section exercise based plots", color="white"),
-            dmc.Select(
-                id="dropdown-muscle-group",
-                data=sorted(set(df["Muscle Category"])),
-                label="Muscle Group",
-                description="Filter exercises by muscle group",
-                clearable=True,
-                icon=DashIconify(icon="icon-park-outline:muscle", color="blue"),
-            ),
-            dmc.Select(
-                id="dropdown-exercise-type",
-                data=sorted(set(df["Exercise Type"])),
-                label="Exercise Type",
-                clearable=True,
-                icon=DashIconify(icon="material-symbols:exercise-outline", color="blue", width=17),
-                description="Filter exercises by exercise type",
-            ),
-            dmc.Select(
-                id="dropdown-exercise",
-                data=sorted(set(df["Exercise Name"])),
-                label="Exercise",
-                value="Barbell Squat",
-                icon=DashIconify(icon="healthicons:exercise-weights", color="blue", width=20),
-                nothingFound="Exercise not found",
-                description="Plot",
-                placeholder="Enter or select an exercise",
-                searchable=True,
-                clearable=True,
-            ),
-            dmc.DateRangePicker(
-                id="date-range-picker",
-                label="Timeframe",
-                icon=DashIconify(icon="clarity:date-line"),
-                description="Limit plots to a certain time frame.",
-                minDate=min(df.index),
-                maxDate=max(df.index),
-            ),
-            dmc.Switch(id="switch-show-comments", label="Show only commented sets"),
-        ]
-    ),
-)
-
-content = html.Div(
-    id="content",
-    children=[
-        dmc.Tabs(
-            [
-                dmc.TabsList(
-                    [
-                        dmc.Tab("Exercise", value="exercise"),
-                        dmc.Tab("Powerlifting Headquarter", value="powerlifting"),
-                        dmc.Tab("Program Statistics", value="program"),
-                        dmc.Tab("Timely", value="time"),
-                        dmc.Tab("Data Playground", value="playground"),
-                    ],
-                ),
-                dmc.TabsPanel(exercise_content(app, df), value="exercise"),
-                dmc.TabsPanel(powerlifting_content(df, df_weight), value="powerlifting"),
-                dmc.TabsPanel(program_content(df, df_weight), value="program"),
-                dmc.TabsPanel(timely_content(df), value="time"),
-                dmc.TabsPanel(playground(df), value="playground"),
-            ],
-            value="exercise",
-            color="violet",
-        ),
-    ],
-)
+df, df_weight = load_data()
 
 
-app.layout = dmc.MantineProvider(
-    theme={
-        # "colorScheme": "dark",
-    },
-    children=[html.Div(children=[header, sidebar, html.Br(), content])],
-)
-
-
-@callback(
-    Output("sidebar", "style"),
-    Output("content", "style"),
-    Input("button-toggle-sidebar", "opened"),
-)
-def toggle_sidebar(opened: bool) -> tuple([dict, dict]):
-    """Toggle the sidebar."""
-    if opened:
-        return SIDEBAR_STYLE, CONTENT_STYLE_COMPACT
-    return SIDEBAR_HIDDEN, CONTENT_STYLE_FULL
-
-
-# the style arguments for the sidebar. We use position:fixed and a fixed width
-SIDEBAR_STYLE = {
-    "position": "fixed",
-    "top": 62.5,
-    "left": 0,
-    "bottom": 0,
-    "width": "22rem",
-    "height": "100%",
-    "z-index": 1,
-    "overflow-x": "hidden",
-    "transition": "all 0.5s",
-    "padding": "0.5rem 1rem",
-    # "background-image": "linear-gradient(90deg, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.5) 100%)"
-    # "background-color": "#845ef7",
-}
-
-SIDEBAR_HIDDEN = {
-    "position": "fixed",
-    "top": 62.5,
-    "left": "-22rem",
-    "bottom": 0,
-    "width": "22rem",
-    "height": "100%",
-    "z-index": 1,
-    "overflow-x": "hidden",
-    "transition": "all 0.5s",
-    "padding": "0rem 0rem",
-    # "background-color": "#845ef7",
-}
-
-# the styles for the main content position it to the right of the sidebar and
+# the styles for the main content position is to the right of the sidebar and
 # add some padding.
 CONTENT_STYLE_COMPACT = {
     "transition": "margin-left .5s",
@@ -180,6 +51,79 @@ CONTENT_STYLE_FULL = {
     "padding": "2rem 1rem",
     "background-color": "#f8f9fa",
 }
+
+content = html.Div(
+    id="content",
+    children=[
+        dmc.Tabs(
+            [
+                dmc.TabsList(
+                    [
+                        dmc.Tab("Exercise", value="exercise"),
+                        dmc.Tab("Powerlifting Headquarter", value="powerlifting"),
+                        dmc.Tab("Program Statistics", value="program"),
+                        dmc.Tab("Timely", value="time"),
+                        dmc.Tab("Data Playground", value="playground"),
+                    ],
+                ),
+                dmc.TabsPanel(exercise_layout(app, df, exercise_compendium), value="exercise"),
+                dmc.TabsPanel(powerlifting_layout(df, df_weight), value="powerlifting"),
+                dmc.TabsPanel(program_layout(app, df), value="program"),
+                dmc.TabsPanel(id="general-content", value="time"),
+                dmc.TabsPanel(playground_layout(df), value="playground"),
+            ],
+            id="tabs",
+            value="exercise",
+            color="violet",
+        ),
+    ],
+    style=CONTENT_STYLE_COMPACT,
+)
+
+
+app.layout = dmc.MantineProvider(
+    theme={
+        # "colorScheme": "dark",
+    },
+    children=[
+        html.Div(id="div-loading", children=[dash_loading_spinners.Pacman(fullscreen=True, id="loading-whole-app")]),
+        html.Div(id="div-app", children=[header, get_sidebar(df), html.Br(), content]),
+    ],
+)
+
+
+@app.callback(
+    Output("div-loading", "children"),
+    [Input("div-app", "loading_state")],
+    [
+        State("div-loading", "children"),
+    ],
+)
+def hide_loading_after_startup(loading_state, children):
+    if children:
+        print("remove loading spinner!")
+        return None
+    print("spinner already gone!")
+    raise PreventUpdate
+
+
+@callback(
+    Output("sidebar", "style"),
+    Output("content", "style"),
+    Input("button-toggle-sidebar", "opened"),
+)
+def toggle_sidebar(opened: bool) -> tuple[dict, dict]:
+    """Toggle the sidebar."""
+    if opened:
+        return SIDEBAR_VISIBLE_STYLE, CONTENT_STYLE_COMPACT
+    return SIDEBAR_HIDDEN_STYLE, CONTENT_STYLE_FULL
+
+
+# @callback(Output("button-toggle-sidebar", "opened"), Input("tabs", "value"))
+# def hide_sidebar(selected_tab):
+#     if selected_tab != "exercise":
+#         return False
+#     return True
 
 
 if __name__ == "__main__":
