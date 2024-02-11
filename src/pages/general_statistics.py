@@ -1,23 +1,57 @@
-from dash import dcc
 import dash_mantine_components as dmc
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
+from dash import dcc, html
+from wordcloud import WordCloud
 
 
-def timely_content(df):
+def time_layout(df):
     training_days_per_week = training_days(df)
     training_time_per_day = training_time(df)
     moved_weight = lifted_weight(df)
     performed_reps = done_reps(df)
-    return dmc.SimpleGrid(
-        cols=2,
-        children=[
-            dmc.Paper(training_days_per_week, shadow="md"),
-            dmc.Paper(training_time_per_day, shadow="md"),
-            dmc.Paper(moved_weight, shadow="md"),
-            dmc.Paper(performed_reps, shadow="md"),
-        ],
+    word_cloud = generate_wordcloud(df)
+    layout = [
+        dmc.SimpleGrid(
+            cols=2,
+            children=[
+                dmc.Paper(training_days_per_week, shadow="md"),
+                dmc.Paper(training_time_per_day, shadow="md"),
+                dmc.Paper(moved_weight, shadow="md"),
+                dmc.Paper(performed_reps, shadow="md"),
+            ],
+        ),
+        html.Br(),
+        dmc.Center(dmc.Paper(word_cloud, shadow="md")),
+    ]
+    return layout
+
+
+def generate_wordcloud(df: pd.DataFrame):
+    # filter None comments
+    set_comments = df[df["Set Comment"] != "None"]["Set Comment"]
+
+    text = " ".join(set_comments)
+
+    wordcloud = WordCloud(
+        background_color="white",
+        width=1600,
+        height=800,
+        max_words=100,
+    ).generate(text)
+
+    fig = go.Figure()
+    fig.add_trace(go.Image(z=wordcloud.to_array(), hoverinfo="none"))
+    fig.update_layout(
+        width=wordcloud.width,
+        height=wordcloud.height,
+        xaxis=dict(visible=False),
+        yaxis=dict(visible=False),
+        margin=dict(l=10, r=10, t=10, b=10),
     )
+
+    return dcc.Graph(figure=fig)
 
 
 def training_days(df):
@@ -26,9 +60,7 @@ def training_days(df):
     df["Day"] = df.index.day
     days_per_week = df.groupby("Week")["Day"].nunique().reset_index()
     days_per_week.columns = ["Week", "Days"]
-    days_per_week["Week"] = pd.to_datetime(
-        days_per_week["Week"] + "-1", format="%Y-%U-%w"
-    )
+    days_per_week["Week"] = pd.to_datetime(days_per_week["Week"] + "-1", format="%Y-%U-%w")
     fig = px.bar(days_per_week, x="Week", y="Days")
     fig.update_layout(
         xaxis=dict(tickformat="CW %W<br>%Y", title="Time"),
@@ -41,9 +73,7 @@ def training_days(df):
 
 def training_time(df):
     """Calculate the training time per day."""
-    training_time_per_day = df.groupby(df.index.date)["Time"].apply(
-        lambda x: (x.max() - x.min()).total_seconds() / 60
-    )
+    training_time_per_day = df.groupby(df.index.date)["Time"].apply(lambda x: (x.max() - x.min()).total_seconds() / 60)
     fig = px.histogram(
         training_time_per_day,
         x=training_time_per_day.values,
@@ -68,7 +98,5 @@ def lifted_weight(df):
 def done_reps(df):
     done_reps = df["Repetitions"].cumsum()
     fig = px.area(done_reps, y="Repetitions")
-    fig.update_layout(
-        title="Performed Repetitions cumulative sum", yaxis_title="Repetitions"
-    )
+    fig.update_layout(title="Performed Repetitions cumulative sum", yaxis_title="Repetitions")
     return dcc.Graph(figure=fig)
