@@ -1,9 +1,7 @@
 import csv
-import json
 import re
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 
@@ -14,7 +12,6 @@ class PreprocessClass:
         progression_path: str,
         weight_myfitnesspal_path: str,
         weight_eufy_path: str,
-        weight_google_fit_path: str,
     ):
         self.progression_path = Path(progression_path)
         self.gymbook_path = Path(gymbook_path)
@@ -22,7 +19,6 @@ class PreprocessClass:
         self.GYMBOOK_NAME = "gymbook"
         self.weight_myfitnesspal_path = Path(weight_myfitnesspal_path)
         self.weight_eufy_path = Path(weight_eufy_path)
-        self.weight_google_fit_path = Path(weight_google_fit_path)
 
     def fix_progression_csv(self, input_file_path: Path, output_file_path=None) -> Path:
         """Makes the progression csv readable and returns the path to the fixed csv"""
@@ -192,24 +188,22 @@ class PreprocessClass:
     @staticmethod
     def singularize(exercises: set[str]) -> dict:
         """Convert from plural form to singular form"""
-        # Plural form es but keep e
-        plural_exceptions = ["lunges", "raises"]
         singles = []
         for exercise in exercises:
             if exercise[-2:] == "es":
-                singular_replacement = exercise[:-2]
+                if "Lunges" in exercise or "Raises" in exercise:
+                    # Example: Barbell Lunges --> Barbell Lunge, Calf Raises...
+                    singular_replacement = exercise[:-1]
+                else:
+                    # Example: Crunches -> Crunch, Arnold Presses...
+                    singular_replacement = exercise[:-2]
                 singles.append([exercise, singular_replacement])
             elif exercise[-1:] == "s" and not exercise[-2:] == "ss":
+                # Example: Barbell Rows -> Barbell Row, Leg Extensions...
                 singular_replacement = exercise[:-1]
                 singles.append([exercise, singular_replacement])
 
         map_plural_to_singular = dict(singles)
-        plural_exceptions = {"Lunges", "Raises"}
-        for exercise in map_plural_to_singular:
-            for exception in plural_exceptions:
-                if exception in exercise:
-                    singular_replacement = exercise.replace(exception[:-2], exception[:-1])
-                    map_plural_to_singular[exercise] = singular_replacement
         return map_plural_to_singular
 
     def match_exercise_names(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -318,7 +312,7 @@ class PreprocessClass:
             "Rücken": "Back",
             "Schultern": "Shoulders",
         }
-        df["Bereich"] = df["Bereich"].replace(map_muscle_category_ger_eng).fillna("Undefined")
+        df["Bereich"] = df["Bereich"].map(map_muscle_category_ger_eng).fillna("Undefined")
 
         exercises_without_category = set(df[df["Bereich"] == "Undefined"]["Exercise Name"])
         exercises_with_category = set(df[df["Bereich"] != "Undefined"]["Exercise Name"])
@@ -453,14 +447,14 @@ class PreprocessClass:
         # Remove NaNs
         df["Weight"] = df["Weight"].fillna(0).astype(float)
 
-        df["Muscle Category"] = df["Muscle Category"].astype("category")
-        df["Exercise Name"] = df["Exercise Name"].astype("category")
         df["Repetitions"] = df["Repetitions"].astype(int)
-        df["Workout Name"] = df["Workout Name"].astype("category")
+        df["Muscle Category"] = df["Muscle Category"].astype("category")
+        df["Exercise Type"] = df["Exercise Type"].astype("category")
         return df
 
     @staticmethod
     def add_other_stuff(df: pd.DataFrame) -> pd.DataFrame:
+        """Add weekday and volume information as columns"""
         weekday_map = {
             0: "Monday",
             1: "Tuesday",
@@ -471,8 +465,8 @@ class PreprocessClass:
             6: "Sunday",
         }
 
-        df["Weekday"] = df["Time"].dt.weekday.map(weekday_map)
-        df["Volume"] = df["Weight"] * df["Repetitions"]
+        df["Weekday"] = df["Time"].dt.weekday.map(weekday_map).astype("category")
+        df["Volume"] = df["Weight"].astype(float) * df["Repetitions"]
         return df
 
     @staticmethod
@@ -525,6 +519,8 @@ class PreprocessClass:
 
         # Convert and combine date / time columns into one datetime column
         df_progression = self.merge_date_time_columns(df_progression, "%Y-%m-%d %H:%M:%S")
+        # Change progression set Order, such that it starts at 1 instead of 0
+        df_progression["Set Order"] = df_progression["Set Order"] + 1
         df_gymbook = self.merge_date_time_columns(df_gymbook, "%d.%m.%Y %H:%M")
 
         df_gymbook = self.extend_gymbook_df(df_gymbook)
@@ -535,10 +531,9 @@ class PreprocessClass:
         df = self.match_exercise_names(df)
         df = self.add_muscle_category(df)
         df = self.add_exercise_category(df)
-
         df = self.fix_dtypes(df)
-
         df = self.add_other_stuff(df)
+
         df = df.sort_values("Time").reset_index(drop=True)
         df = self.clean_up_data(df)
         df.index = df["Time"]
@@ -559,15 +554,6 @@ class PreprocessClass:
         # New data export from Eufy Smart Scale
         df_weight_new = pd.read_csv(self.weight_eufy_path)
         df_weight_new = df_weight_new.rename(columns={"WEIGHT (kg)": "Weight"})
-
-        # Newest data export from Google Fit (since Eufy export is broken)
-        with open(self.weight_google_fit_path, "r") as f:
-            google_fit_data = json.load(f)
-        df_weight_newest = pd.DataFrame(google_fit_data["Data Points"])
-        df_weight_newest["Time"] = pd.to_datetime(df_weight_newest["startTimeNanos"] / 1e9, unit="s")
-        # df_weight_newest = df_weight_newest.set_index("Time")
-        df_weight_newest["Weight"] = df_weight_newest["fitValue"].apply(lambda x: x[0]["value"]["fpVal"])
-        # df_weight_newest = df_weight_newest["Weight"]
 
         df_weight = pd.concat([df_weight_old, df_weight_new])
         df_weight["Time"] = pd.to_datetime(df_weight["Time"], format="%Y-%m-%d %H:%M:%S")
