@@ -1,48 +1,47 @@
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
+from unicodedata import category
 
 import dash_mantine_components as dmc
 import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from dash import Input, Output, callback, dcc, html
+from dash import Input, Output, State, callback, dcc, html
 from dash_iconify import DashIconify
+from exercise_compendium import Exercise
 
-from utils.common_functions import plot_placeholder
 
-
-def exercise_content(app, df: pd.DataFrame) -> dmc.Stack:
-    get_callbacks(app, df)
-    layout = dmc.Stack(
-        [
-            generate_info_cards(),
-            html.Br(),
-            dmc.Grid(
-                children=[
-                    dmc.Col(
-                        dmc.Paper(dcc.Graph(id="graph-weight-by-exercise"), shadow="md"),
-                        span=12,
-                    ),
-                    dmc.Col(
-                        dmc.Paper(dcc.Graph(id="graph-volume-by-exercise"), shadow="md"),
-                        span=6,
-                    ),
-                    dmc.Col(
-                        dmc.Paper(dcc.Graph(id="graph-1rm-by-exercise"), shadow="md"),
-                        span=6,
-                    ),
-                    dmc.Col(
-                        dmc.Paper(dcc.Graph(id="graph-day-by-exercise"), shadow="md"),
-                        span=6,
-                    ),
-                    dmc.Col(
-                        dmc.Paper(dcc.Graph(id="graph-days-trained-by-exercise"), shadow="md"),
-                        span=6,
-                    ),
-                ],
-                justify="flex-end",
-            ),
-        ]
+def exercise_layout(app, df: pd.DataFrame, exercise_compendium) -> dmc.Stack:
+    get_callbacks(app, df, exercise_compendium)
+    layout = (
+        dmc.Grid(
+            [
+                dmc.Col(dmc.Card(id="exercise-info-card", shadow="sm"), span=3),
+                dmc.Col(generate_info_cards(), span=6),
+                # html.Br(),
+                dmc.Col(
+                    dmc.Paper(dcc.Graph(id="graph-weight-by-exercise"), shadow="md"),
+                    span=12,
+                ),
+                dmc.Col(
+                    dmc.Paper(dcc.Graph(id="graph-volume-by-exercise"), shadow="md"),
+                    span=6,
+                ),
+                dmc.Col(
+                    dmc.Paper(dcc.Graph(id="graph-1rm-by-exercise"), shadow="md"),
+                    span=6,
+                ),
+                dmc.Col(
+                    dmc.Paper(dcc.Graph(id="graph-day-by-exercise"), shadow="md"),
+                    span=6,
+                ),
+                dmc.Col(
+                    dmc.Paper(dcc.Graph(id="graph-days-trained-by-exercise"), shadow="md"),
+                    span=6,
+                ),
+            ],
+            justify="flex-start",
+        ),
     )
     return layout
 
@@ -71,7 +70,7 @@ def generate_info_cards() -> dmc.Group:
                 "s rest time on average",
                 "material-symbols:timer-outline",
             ),
-        ]
+        ],
     )
 
 
@@ -133,8 +132,8 @@ def info_card(
     return layout
 
 
-def get_callbacks(app, df):
-    @app.callback(
+def get_callbacks(app, df: pd.DataFrame, exercise_info: Dict[str, Exercise]):
+    @callback(
         Output("dropdown-exercise", "data"),
         Input("dropdown-muscle-group", "value"),
         Input("dropdown-exercise-type", "value"),
@@ -158,10 +157,14 @@ def get_callbacks(app, df):
         exercise: str,
         date_range: None | list[str],
         show_only_commented_sets: bool,
+        show_variations: bool,
     ) -> pd.DataFrame:
         """Filter exercise data based on selection in sidebar.
         Includes selected exercise, date range and show only comment sets."""
         df_filtered_exercise = df[df["Exercise Name"] == exercise]
+        if show_variations:
+            exercises = exercise_info[exercise].get_similar_exercise(exercise_info)
+            df_filtered_exercise = df[df["Exercise Name"].isin(exercises)]
         if date_range:
             start_date, end_date = pd.to_datetime(date_range)
             df_filtered_exercise = df_filtered_exercise[
@@ -172,6 +175,52 @@ def get_callbacks(app, df):
         return df_filtered_exercise
 
     @callback(
+        Output("exercise-info-card", "children"),
+        Input("dropdown-exercise", "value"),
+    )
+    def update_exercise_info_card(exercise: str):
+        ex = exercise_info[exercise]
+        prime_muscles = dmc.Group(
+            [dmc.Badge(muscle.value, variant="filled", color="violet", size="lg") for muscle in ex.prime_muscles]
+        )
+        secondary_muscles = dmc.Group(
+            [dmc.Badge(muscle.value, variant="filled", color="violet", size="md") for muscle in ex.secondary_muscles]
+        )
+        tertiary_muscles = dmc.Group(
+            [dmc.Badge(muscle.value, variant="filled", color="violet", size="sm") for muscle in ex.teritary_muscles]
+        )
+
+        card = [
+            dmc.Group(
+                [
+                    dmc.Text(exercise, weight=700, size="xl"),
+                    dmc.Group(
+                        dmc.Tooltip(
+                            label=ex.equipment.value,
+                            children=html.Img(
+                                src=app.get_asset_url(f"icons/{ex.equipment.value.lower()}.svg"), width=50
+                            ),
+                        ),
+                    ),
+                ],
+                position="apart",
+            ),
+            dmc.Group(
+                [
+                    dmc.Text(
+                        f"This is a {ex.mechanic.value} exercise and falls under the category of {ex.force.value} movements. It trains the following muscles"
+                    ),
+                    prime_muscles,
+                    secondary_muscles,
+                    tertiary_muscles,
+                ],
+                spacing="xs",
+            ),
+        ]
+
+        return card
+
+    @callback(
         [Output(f"badge-min-{category}-by-exercise", "children") for category in ["weight", "sets", "reps", "rest"]],
         [Output(f"badge-max-{category}-by-exercise", "children") for category in ["weight", "sets", "reps", "rest"]],
         [Output(f"text-median-{category}-by-exercise", "children") for category in ["weight", "sets", "reps", "rest"]],
@@ -179,11 +228,11 @@ def get_callbacks(app, df):
         [Output(f"tooltip-max-{category}-by-exercise", "label") for category in ["weight", "sets", "reps", "rest"]],
         Input("dropdown-exercise", "value"),
     )
-    def stats_by_exercise(exercise: str) -> tuple([str] * 12):
+    def stats_by_exercise(exercise: str) -> Tuple[str, ...]:
         """Display statistics for the selected exercise."""
         df_filtered_exercise = df[df["Exercise Name"] == exercise]
         if df_filtered_exercise.empty:
-            return ("",) * 12
+            return ("",) * 20
 
         # Calculate median rest time between sets
         avg_set_time_per_date = calculate_avg_set_time(df_filtered_exercise)
@@ -228,16 +277,19 @@ def get_callbacks(app, df):
         Input("dropdown-exercise", "value"),
         Input("date-range-picker", "value"),
         Input("switch-show-comments", "checked"),
+        Input("switch-show-variations", "checked"),
     )
-    def graph_by_exercise(exercise: str, date_range: None | list[str], show_only_comment_sets: bool):
+    def graph_by_exercise(
+        exercise: str, date_range: None | list[str], show_only_comment_sets: bool, show_variations: bool
+    ):
         """Different exercise specific plots over time. Such as weight, volume or 1rm."""
-        df_filtered_exercise = filter_exercise_data(df, exercise, date_range, show_only_comment_sets)
+        df_filtered_exercise = filter_exercise_data(df, exercise, date_range, show_only_comment_sets, show_variations)
 
         if df_filtered_exercise.empty:
             empty_message = plot_placeholder(exercise)
             return (empty_message,) * 5
 
-        figure_weight = plot_weight_bubbles(df_filtered_exercise)
+        figure_weight = plot_weight_bubbles(df_filtered_exercise, exercise)
         figure_1rm = plot_one_rm(df_filtered_exercise)
         figure_volume = plot_volume(df_filtered_exercise)
 
@@ -253,7 +305,7 @@ def get_callbacks(app, df):
             figure_weekday,
         )
 
-    def plot_weight_bubbles(df: pd.DataFrame) -> go.Figure():
+    def plot_weight_bubbles(df: pd.DataFrame, exercise: str) -> go.Figure:
         """Plot of weight over time. Different colors for different repetitions.
         Bubble size represents volume."""
         # Limit max color scale value to not dilute the colors
@@ -273,9 +325,11 @@ def get_callbacks(app, df):
             color="Repetitions",
             range_color=color_scale_range,
             size="Volume",
+            symbol="Exercise Name",
             title="Weight Progression",
         )
         figure_weight.update_layout(yaxis_title="Weight [kg]")
+
         # Hoverup text
         figure_weight.update(
             data=[
@@ -286,9 +340,15 @@ def get_callbacks(app, df):
             ]
         )
 
+        # Move legend to bottom left corner and conditionally display
+        if len(df["Exercise Name"].unique()) > 2:
+            figure_weight.update_layout(legend=dict(orientation="h"))
+        else:
+            figure_weight.update_layout(showlegend=False)
+
         return figure_weight
 
-    def plot_one_rm(df: pd.DataFrame, max_reps: int = 5) -> go.Figure():
+    def plot_one_rm(df: pd.DataFrame, max_reps: int = 5) -> go.Figure:
         """Plot predicting 1RM over time."""
         # 1RM calculation is only reliable up to about 5 reps
         df_reliable = df[df["Repetitions"] <= max_reps]
@@ -306,7 +366,8 @@ def get_callbacks(app, df):
         figure_1rm.update(
             data=[
                 {
-                    "hovertemplate": "Time: %{x}<br>Weight: %{y:.2f} kg<br>Repetitions: %{marker.color}",
+                    "customdata": df_reliable["Weight"],
+                    "hovertemplate": "Time: %{x}<br>Weight: %{y:.2f} kg<br>Attempt: %{customdata} kg x %{marker.color}",
                 }
             ]
         )
@@ -318,15 +379,16 @@ def get_callbacks(app, df):
                 # Make markers diamonds
                 marker={"symbol": "diamond", "size": 5, "color": "gray"},
                 # Add hoverup data with info about repetitions and weight
-                hovertemplate="Time: %{x}<br>Weight: %{y:.2f} kg<br>Repetitions:%{text}",
-                text=df_unreliable["Repetitions"],
+                hovertemplate="Time: %{x}<br>Weight: %{y:.2f} kg<br>Attempt: %{customdata[0]} kg x %{customdata[1]}",
+                customdata=list(zip(df_unreliable["Weight"], df_unreliable["Repetitions"])),
+                name="",
             )
         )
         # Do not show legend for the two traces
         figure_1rm.update_layout(showlegend=False, yaxis_title="Weight [kg]")
         return figure_1rm
 
-    def plot_volume(df: pd.DataFrame) -> go.Figure():
+    def plot_volume(df: pd.DataFrame) -> go.Figure:
         """Plot training volume per day over time."""
         grouped_by_date = df.groupby(df.index.date)
         volume = grouped_by_date.apply(lambda x: (x["Repetitions"] * x["Weight"]).sum())
@@ -375,7 +437,7 @@ def get_callbacks(app, df):
         figure_weekday = plot_frequent_day(df_filtered_exercise, weekday_map)
         return figure_time_heatmap, figure_weekday
 
-    def plot_frequent_day(df: pd.DataFrame, weekday_map: dict[int, str]) -> go.Figure():
+    def plot_frequent_day(df: pd.DataFrame, weekday_map: dict[int, str]) -> go.Figure:
         """Plot favorite training day.
         Days where at least one set of the exercise was performed count as training day.
         """
@@ -384,12 +446,13 @@ def get_callbacks(app, df):
         weekdays = pd.Categorical(
             grouped_by_date["Weekday"].first(),
             categories=list(weekday_map.values()),
-        )
-        figure_weekday = px.histogram(weekdays.sort_values(), title="Training Days")
+        ).sort_values()
+
+        figure_weekday = px.histogram(weekdays, title="Training Days")
         figure_weekday.update_layout(xaxis_title="Weekday", yaxis_title="Training Days", showlegend=False)
         return figure_weekday
 
-    def plot_frequent_time(df: pd.DataFrame, weekday_map: dict[int, str]) -> go.Figure():
+    def plot_frequent_time(df: pd.DataFrame, weekday_map: dict[int, str]) -> go.Figure:
         """Plot favorite training time.
         Each performed set in a 1 hour block increases the counter."""
         figure_time_heatmap = px.density_heatmap(
@@ -409,4 +472,5 @@ def get_callbacks(app, df):
                 }
             ]
         )
+        figure_time_heatmap.update_layout(coloraxis_colorbar={"title": "Sets"})
         return figure_time_heatmap
