@@ -180,9 +180,9 @@ class PreprocessClass:
         """Add Session Duration and Set Order column to gymbook df, to match progression df"""
         # Calculate workout time using time difference between first and last set for each day
         df["Session Duration (s)"] = (
-            df.groupby(df["Time"].dt.date)["Time"].transform(lambda x: x.max() - x.min()).dt.seconds
+            df.groupby(df["Time"].dt.date, observed=True)["Time"].transform(lambda x: x.max() - x.min()).dt.seconds
         )
-        df["Set Order"] = df.groupby([df["Time"].dt.date, "Exercise Name"]).cumcount() + 1
+        df["Set Order"] = df.groupby([df["Time"].dt.date, "Exercise Name"], observed=True).cumcount() + 1
         return df
 
     @staticmethod
@@ -485,7 +485,9 @@ class PreprocessClass:
         # Recalculate session duration
         df_too_long = df[df["Session Duration (s)"] > session_time_limit_s]
         df.loc[df["Session Duration (s)"] > session_time_limit_s, "Session Duration (s)"] = (
-            df_too_long.groupby(df["Time"].dt.date)["Time"].transform(lambda x: x.max() - x.min()).dt.seconds
+            df_too_long.groupby(df["Time"].dt.date, observed=True)["Time"]
+            .transform(lambda x: x.max() - x.min())
+            .dt.seconds
         )
 
         # Replace NaNs of column Set Comment with empty string
