@@ -4,6 +4,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 from dash import dcc
 from dash_iconify import DashIconify
+from scipy.interpolate import interp1d
+from statsmodels.nonparametric.smoothers_lowess import lowess
 
 
 def powerlifting_layout(df: pd.DataFrame, df_weight: pd.DataFrame) -> dmc.Stack:
@@ -19,7 +21,7 @@ def powerlifting_layout(df: pd.DataFrame, df_weight: pd.DataFrame) -> dmc.Stack:
     fig = get_plot(df_powerlifting)
 
     strength_cards = get_card_overview(df, powerlifting_exercises)
-    strength_cards = dmc.Group(strength_cards, spacing="xl")
+    strength_cards = dmc.Group(strength_cards, gap="xl")
 
     figure_bodyweight = get_bodyweight_figure(df_weight)
 
@@ -64,7 +66,7 @@ def get_card_overview(df, powerlifting_exercises):
         children=[
             dmc.Group(
                 [
-                    dmc.Text("Total", weight=700, size="xl"),
+                    dmc.Text("Total", fw=700, size="xl"),
                     dmc.Text(
                         f"{powerlifting_total:.0f} kg\n({powerlifting_total_lbs:.0f} lbs)",
                     ),
@@ -108,15 +110,15 @@ def strength_card(exercise, weight, date, total_reps, total_weight, icon, icon_s
                 [
                     dmc.Group(
                         [
-                            dmc.Text(children=exercise, weight=700, size="xl"),
+                            dmc.Text(children=exercise, fw=700, size="xl"),
                             DashIconify(icon=icon, width=icon_size),
                         ],
-                        position="apart",
+                        justify="apart",
                     ),
                     dmc.Group(
                         [
-                            dmc.Text(children=weight, weight=500, size="xl"),
-                            dmc.Text(children=date, color="dimmed", size="sm", align="right"),
+                            dmc.Text(children=weight, fw=500, size="xl"),
+                            dmc.Text(children=date, c="dimmed", size="sm", ta="right"),
                         ]
                     ),
                     dmc.Group(
@@ -126,34 +128,64 @@ def strength_card(exercise, weight, date, total_reps, total_weight, icon, icon_s
                         ]
                     ),
                 ],
-                spacing="sm",
+                gap="sm",
             )
         ],
         shadow="sm",
     )
 
 
-def get_bodyweight_figure(df_weight):
-    # TODO: All
-    fig = px.scatter(
-        df_weight,
-        x="Time",
-        y="Weight",
+def get_bodyweight_figure(df_weight: pd.DataFrame) -> go.Figure:
+    # Create trendline
+    time_num = df_weight["Time"].astype(int) / 10**9
+    lowess_smoothed = lowess(df_weight["Weight"], time_num, frac=0.15)
+    interp_func = interp1d(lowess_smoothed[:, 0], lowess_smoothed[:, 1], kind="cubic", fill_value="extrapolate")
+    # Generate more frequent time points for a smoother curve (one per day)
+    n_days = (df_weight["Time"].max() - df_weight["Time"].min()).days
+    dense_time = pd.date_range(start=df_weight["Time"].min(), end=df_weight["Time"].max(), periods=n_days)
+    dense_time_num = dense_time.astype(int) / 10**9
+
+    # Create the figure
+    fig = go.Figure()
+
+    # Add scattered points
+    fig.add_trace(
+        go.Scatter(
+            x=df_weight["Time"],
+            y=df_weight["Weight"],
+            mode="markers",
+            name="Measured Weight",
+        )
+    )
+
+    # Add smoothed line
+    fig.add_trace(
+        go.Scatter(
+            x=dense_time,
+            y=interp_func(dense_time_num),
+            mode="lines",
+            name="Smoothed Trend",
+        )
+    )
+
+    # Add horizontal lines for weight classes
+    add_weight_class_line(fig, 66)
+    add_weight_class_line(fig, 74)
+
+    # Update layout
+    fig.update_layout(
         title="Bodyweight",
-        trendline="lowess",
-        trendline_options={"frac": 0.1},
-    )
-    fig.add_hline(
-        y=66,
-        line_dash="dash",
-        line_width=0.5,
-        annotation_text="66 kg Weight Class",
-        annotation_position="bottom left",
-    )
-    fig.add_hline(
-        y=74,
-        line_dash="dot",
-        annotation_text="74 kg Weight Class",
-        annotation_position="bottom left",
+        xaxis_title="Time",
+        yaxis_title="Weight [kg]",
     )
     return fig
+
+
+def add_weight_class_line(fig: go.Figure, weight_class: int) -> None:
+    fig.add_hline(
+        y=weight_class,
+        line_dash="dash",
+        line_width=0.5,
+        annotation_text=f"{weight_class} kg Weight Class",
+        annotation_position="bottom left",
+    )
