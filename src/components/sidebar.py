@@ -5,28 +5,30 @@ import dash_mantine_components as dmc
 from dash_iconify import DashIconify
 from pandas import DataFrame
 
+from components.custom_elements import create_switch_card
 
-def get_sidebar(df: DataFrame) -> dmc.Aside:
-    sidebar = dmc.Aside(
+
+def get_sidebar(df: DataFrame) -> dmc.AppShellAside:
+    sidebar = dmc.AppShellAside(
         id="sidebar",
         children=dmc.Stack(
             [
-                dmc.Title("Plots by Exercise", color="white"),
-                dmc.Text("Section exercise based plots", color="white"),
+                dmc.Title("Plots by Exercise", c="white"),
+                dmc.Text("Section exercise based plots", c="white"),
                 dmc.Select(
                     id="dropdown-muscle-group",
                     data=sorted(set(df["Muscle Category"])),
                     label="Muscle Group",
                     description="Filter exercises by muscle group",
                     clearable=True,
-                    icon=DashIconify(icon="icon-park-outline:muscle", color="blue"),
+                    leftSection=DashIconify(icon="icon-park-outline:muscle", color="blue"),
                 ),
                 dmc.Select(
                     id="dropdown-exercise-type",
                     data=sorted(set(df["Exercise Type"])),
                     label="Exercise Type",
                     clearable=True,
-                    icon=DashIconify(icon="material-symbols:exercise-outline", color="blue", width=17),
+                    leftSection=DashIconify(icon="material-symbols:exercise-outline", color="blue", width=17),
                     description="Filter exercises by exercise type",
                 ),
                 dmc.Select(
@@ -34,23 +36,42 @@ def get_sidebar(df: DataFrame) -> dmc.Aside:
                     data=sorted(set(df["Exercise Name"])),
                     label="Exercise",
                     value="Barbell Squat",
-                    icon=DashIconify(icon="healthicons:exercise-weights", color="blue", width=20),
-                    nothingFound="Exercise not found",
+                    leftSection=DashIconify(icon="healthicons:exercise-weights", color="blue", width=20),
+                    nothingFoundMessage="Exercise not found",
                     description="Plot",
                     placeholder="Enter or select an exercise",
                     searchable=True,
                     clearable=True,
                 ),
-                dmc.DateRangePicker(
+                dmc.DateTimePicker(
                     id="date-range-picker",
                     label="Timeframe",
-                    icon=DashIconify(icon="clarity:date-line"),
+                    leftSection=DashIconify(icon="clarity:date-line"),
                     description="Limit plots to a certain time frame.",
                     minDate=min(df.index),
                     maxDate=max(df.index),
                 ),
-                dmc.Switch(id="switch-show-comments", label="Show only commented sets"),
-                dmc.Switch(id="switch-show-variations", label="Also show similar exercises"),
+                create_switch_card("switch-show-comments", "Show comments", "Show only commented sets"),
+                create_switch_card("switch-show-variations", "Show variations", "Also show similar exercises"),
+                dmc.Card(
+                    [
+                        dmc.Text("Filter by Repetitions"),
+                        dmc.RangeSlider(
+                            id="slider-repetitions",
+                            min=1,
+                            max=50,
+                            step=1,
+                            value=(1, 50),
+                            minRange=1,
+                            mb=35,
+                            marks=[
+                                {"value": 1, "label": "1"},
+                                {"value": 50, "label": "50"},
+                            ],
+                        ),
+                    ],
+                    withBorder=True,
+                ),
             ]
         ),
         style=SIDEBAR_VISIBLE_STYLE,
