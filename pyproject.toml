@@ -1,28 +1,24 @@
-[tool.poetry]
+[project]
 name = "fitness-journey"
 version = "0.1.0"
-description = "Visualization of my gym progress"
-authors = ["fsaal <f.saalfrank@gmail.com>"]
+description = "Add your description here"
 readme = "README.md"
-packages = [{ include = "fitness_journey" }]
+requires-python = ">=3.12"
+dependencies = [
+    "dash>=2.18.1",
+    "dash-loading-spinners>=1.0.3",
+    "numpy>=2.1.1",
+    "dash-mantine-components>=0.14.4",
+    "pandas>=2.2.2",
+    "dash-ag-grid>=31.2.0",
+    "statsmodels>=0.14.3",
+    "dash-iconify>=0.1.2",
+    "ruff>=0.6.5",
+    "wordcloud>=1.9.3",
+    "pandasai>=2.0.24",
+    "plotly>=5.24.1",
+]
 
-[tool.poetry.dependencies]
-python = "^3.11"
-dash = "^2.11.1"
-numpy = "^1.25.1"
-dash-mantine-components = "^0.12.1"
-pandas = "^2.0.3"
-dash-ag-grid = "^2.4.0"
-statsmodels = "^0.14.1"
-dash-iconify = "^0.1.2"
-
-
-[tool.poetry.group.dev.dependencies]
-black = "^24.1.1"
-
-[tool.black]
+# add ruff line length to 120
+[tool.ruff]
 line-length = 120
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
