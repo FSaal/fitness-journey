@@ -58,7 +58,7 @@ def training_days(df):
     """Calculate the number of training days per week."""
     df["Week"] = df.index.strftime("%Y-%U")
     df["Day"] = df.index.day
-    days_per_week = df.groupby("Week")["Day"].nunique().reset_index()
+    days_per_week = df.groupby("Week", observed=True)["Day"].nunique().reset_index()
     days_per_week.columns = ["Week", "Days"]
     days_per_week["Week"] = pd.to_datetime(days_per_week["Week"] + "-1", format="%Y-%U-%w")
     fig = px.bar(days_per_week, x="Week", y="Days")
@@ -73,7 +73,9 @@ def training_days(df):
 
 def training_time(df):
     """Calculate the training time per day."""
-    training_time_per_day = df.groupby(df.index.date)["Time"].apply(lambda x: (x.max() - x.min()).total_seconds() / 60)
+    training_time_per_day = df.groupby(df.index.date, observed=True)["Time"].apply(
+        lambda x: (x.max() - x.min()).total_seconds() / 60
+    )
     fig = px.histogram(
         training_time_per_day,
         x=training_time_per_day.values,
