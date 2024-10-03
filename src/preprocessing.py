@@ -280,6 +280,8 @@ class PreprocessClass:
             "Chest Dip": "Dip",
             "Deficit Deadlift": "Barbell Deficit Deadlift",
             "Machine Bench Press": "Seated Machine Bench Press",
+            "Cossaq Squat": "Cossack Squat",
+            "Cable Pull Trough": "Cable Pull Through",
         }
 
         df["Exercise Name"] = df["Exercise Name"].replace(map_gymbook_plural_to_singular)
