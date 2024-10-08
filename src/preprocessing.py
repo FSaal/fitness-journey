@@ -12,6 +12,7 @@ from exercise_compendium import (
     Force,
     Mechanic,
     Muscle,
+    MuscleCategory,
     create_exercise_library,
 )
 
@@ -60,7 +61,7 @@ class PreprocessClass:
                 last_line = fixed_lines[-1]
                 fixed_lines[-1] = last_line[:-1] + [". ".join([last_line[-1], next_line[0]])] + next_line[1:]
             # Line break
-            elif not re.match("\d{4}-\d{2}-\d{2}", line[0]):
+            elif not re.match(r"\d{4}-\d{2}-\d{2}", line[0]):
                 last_line = fixed_lines[-1]
                 fixed_lines[-1] = last_line[:-1] + [". ".join([last_line[-1], line[0]])] + line[1:]
             else:
@@ -174,9 +175,9 @@ class PreprocessClass:
     def convert_columns(df: pd.DataFrame) -> pd.DataFrame:
         """Convert number columns to int / float"""
         # Convert repetitions column from string to int
-        df["Repetitions"] = df["Repetitions"].str.extract("(\d+)").astype(int)
+        df["Repetitions"] = df["Repetitions"].str.extract(r"(\d+)").astype(int)
         # Remove "kg" from weight column and convert from string to float
-        df["Weight"] = df["Weight"].str.extract("(\d+,\d+)").replace(",", ".", regex=True).astype(float)
+        df["Weight"] = df["Weight"].str.extract(r"(\d+,\d+)").replace(",", ".", regex=True).astype(float)
         return df
 
     def adapt_columns(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -314,96 +315,6 @@ class PreprocessClass:
         return df
 
     @staticmethod
-    def add_muscle_categories(df: pd.DataFrame, exercises: ExerciseLibrary) -> pd.DataFrame:
-        # exercises.search_exercises(ExerciseSearchCriteria(muscles=Muscle))
-        # Convert from german to english
-        map_muscle_category_ger_eng = {
-            "Arme": "Arms",
-            "Bauch": "Abs",
-            "Beine": "Legs",
-            "Brust": "Chest",
-            "Gesäss": "Glute",
-            "Rücken": "Back",
-            "Schultern": "Shoulders",
-        }
-        df["Bereich"] = df["Bereich"].map(map_muscle_category_ger_eng).fillna("Undefined")
-
-        exercises_without_category = set(df[df["Bereich"] == "Undefined"]["Exercise Name"])
-        exercises_with_category = set(df[df["Bereich"] != "Undefined"]["Exercise Name"])
-        # Exercises which where mapped from gymbook to progression naming and did loose their Bereich
-        exercises_with_lost_category = exercises_with_category.intersection(exercises_without_category)
-
-        for exercise in exercises_with_lost_category:
-            # Get first (and only) element of set
-            muscle_category = next(iter(set(df[df["Exercise Name"] == exercise]["Bereich"]) - {"Undefined"}))
-            df.loc[
-                (df["Exercise Name"] == exercise) & (df["Bereich"] == "Undefined"),
-                "Bereich",
-            ] = muscle_category
-
-        map_exercise_to_muscle = {
-            "Abs": {"Crunch"},
-            "Arms": {"Push", "Curl", "Kickback", "Triceps"},
-            "Back": {"Pull", "Row", "Deadlift"},
-            "Chest": {"Bench", "Crossover", "Fly"},
-            "Legs": {"Calf", "Leg", "Squat", "Lunge", "Thigh", "Clean"},
-            "Shoulders": {"Shoulder", "Shrug", "Delt", "Arnold", "Raise"},
-        }
-
-        for exercise in exercises_without_category:
-            muscle_categories = []
-            for category, keywords in map_exercise_to_muscle.items():
-                for keyword in keywords:
-                    if keyword in exercise:
-                        muscle_category = category
-                        muscle_categories.append(category)
-            if len(muscle_categories) == 1:
-                # print(f"Mapping {exercise} to {muscle_category}")
-                df.loc[df["Exercise Name"] == exercise, "Bereich"] = muscle_category
-            elif len(muscle_categories) > 1:
-                # Legs always wins
-                if "Legs" in muscle_categories:
-                    df.loc[df["Exercise Name"] == exercise, "Bereich"] = "Legs"
-                else:
-                    pass
-                    # print(f"Problem with {exercise}. Found in {muscle_categories}. Skipping...")
-            else:
-                pass
-                # print(f"No mapping for {exercise}")
-
-        # Solving conflicts - have keywords in two muscle categories
-        map_conflicts = {
-            "Shoulders": {"Cable Rear Delt Fly"},
-            "Back": {"Single-Arm Dumbbell Row on Bench"},
-            "Chest": {"Barbell Bench Press (with Raised Feet)"},
-        }
-
-        # Map the rest manually
-        manual_map = {
-            "Abs": {
-                "Ab Complex",
-                "Burpee",
-                "Plank",
-                "Russian Twist",
-                "Standing Cable Lift",
-            },
-            "Back": {"Weighted Chinup"},
-            "Arms": {"Wrist Curl (Roller)"},
-            "Shoulders": "Barbell Push Press",
-        }
-
-        for muscle_category, exercises in map_conflicts.items():
-            for exercise in exercises:
-                df.loc[df["Exercise Name"] == exercise, "Bereich"] = muscle_category
-
-        for muscle_category, exercises in manual_map.items():
-            for exercise in exercises:
-                df.loc[df["Exercise Name"] == exercise, "Bereich"] = muscle_category
-
-        df = df.rename(columns={"Bereich": "Muscle Category"})
-        return df
-
-    @staticmethod
     def add_exercise_category(
         df: pd.DataFrame, exercises: ExerciseLibrary, category_type: type, column_name: str = None
     ) -> pd.DataFrame:
@@ -418,6 +329,8 @@ class PreprocessClass:
                 search_criteria = ExerciseSearchCriteria(mechanic=category)
             elif category_type == Force:
                 search_criteria = ExerciseSearchCriteria(force=category)
+            elif category_type == MuscleCategory:
+                search_criteria = ExerciseSearchCriteria(muscle_category=category)
             else:
                 raise ValueError(f"Unknown category type: {category_type}")
 
@@ -494,19 +407,14 @@ class PreprocessClass:
         df_progression = self.read_csv(fixed_progression_csv, self.PROGRESSION_NAME)
 
         # Data file of GymBook app (iOS)
-        # Note: sep=, has to be added as first line in the csv file
+        # Note: sep=, had to be added as first line in the csv file manually
         # Also file has to be saved as utf-8 csv in Excel
         df_gymbook = self.read_csv(self.gymbook_path, self.GYMBOOK_NAME)
 
         df_gymbook = self.remove_skipped_sets(df_gymbook)
 
         df_gymbook = self.remove_redundant_columns(
-            df_gymbook,
-            [
-                "Muskelgruppen (Primäre)",
-                "Muskelgruppen (Sekundäre)",
-                "Satz / Aufwärmsatz / Abkühlungssatz",
-            ],
+            df_gymbook, ["Muskelgruppen (Primäre)", "Muskelgruppen (Sekundäre)", "Satz / Aufwärmsatz / Abkühlungssatz"]
         )
         # Before removing Set Duration, write the info in the repetitions columns, used for time-based exercises e.g. Plank
         df_progression = self.remove_redundant_columns(df_progression, ["Time", "Set Duration (s)"])
@@ -515,7 +423,7 @@ class PreprocessClass:
 
         # Convert and combine date / time columns into one datetime column
         df_progression = self.merge_date_time_columns(df_progression, "%Y-%m-%d %H:%M:%S")
-        # Change progression set Order, such that it starts at 1 instead of 0
+        # Change progression set order, such that it starts at 1 instead of 0
         df_progression["Set Order"] = df_progression["Set Order"] + 1
         df_gymbook = self.merge_date_time_columns(df_gymbook, "%d.%m.%Y %H:%M")
 
@@ -525,7 +433,7 @@ class PreprocessClass:
         df = df.sort_values("Time", ascending=False)
 
         df = self.match_exercise_names(df)
-        df = self.add_muscle_categories(df, exercises)
+        df = self.add_exercise_category(df, exercises, MuscleCategory, "Muscle Category")
         df = self.add_exercise_category(df, exercises, Equipment, "Equipment")
         df = self.add_exercise_category(df, exercises, Mechanic, "Mechanic")
         df = self.add_exercise_category(df, exercises, Force, "Force")
@@ -536,7 +444,6 @@ class PreprocessClass:
         df = df.sort_values("Time").reset_index(drop=True)
         df = self.clean_up_data(df)
         df.index = df["Time"]
-        # Rename index to Time
         df.index.name = "Time"
 
         df_bodyweight = self.get_body_weight_dataframe()
@@ -546,7 +453,7 @@ class PreprocessClass:
     def get_body_weight_dataframe(self):
         # Old data export from myFitnessPal
         df_weight_old = pd.read_csv(self.weight_myfitnesspal_path, delimiter=";")
-        # Add a time to the date
+        # Add a time to the date, since only date was logged
         df_weight_old["Time"] = df_weight_old["Date"] + " 09:00:00"
         df_weight_old = df_weight_old.drop("Date", axis=1)
 

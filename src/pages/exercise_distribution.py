@@ -29,7 +29,7 @@ def get_exercise_distribution_page(df_fitness: pd.DataFrame):
         controls=[
             vm.Dropdown(
                 id="dropdown-category",
-                options=["Muscle Category", "Exercise Type", "Weekday"],
+                options=["Muscle Category", "Equipment", "Force", "Mechanic", "Weekday"],
                 value="Muscle Category",
                 title="Category",
                 multi=False,

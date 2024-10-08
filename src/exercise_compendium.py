@@ -58,28 +58,41 @@ class Muscle(AutoName):
     UPPER_BACK = auto()
 
 
+class MuscleCategory(AutoName):
+    BACK = auto()
+    SHOULDERS = auto()
+    CORE = auto()
+    BICEPS = auto()
+    TRICEPS = auto()
+    FOREARMS = auto()
+    LEGS = auto()
+    GLUTES = auto()
+    HIPS = auto()
+    CHEST = auto()
+
+
 MUSCLE_CATEGORY_MAPPING = {
-    Muscle.LOWER_BACK: "Back",
-    Muscle.MIDDLE_BACK: "Back",
-    Muscle.UPPER_BACK: "Back",
-    Muscle.LATS: "Back",
-    Muscle.TRAPS: "Back",
-    Muscle.SHOULDERS: "Shoulders",
-    Muscle.REAR_DELTS: "Shoulders",
-    Muscle.ABS: "Core",
-    Muscle.OBLIQUES: "Core",
-    Muscle.BICEPS: "Biceps",
-    Muscle.TRICEPS: "Triceps",
-    Muscle.FOREARMS: "Forearms",
-    Muscle.QUADS: "Legs",
-    Muscle.HAMSTRINGS: "Legs",
-    Muscle.CALVES: "Legs",
-    Muscle.TIBIALIS: "Legs",
-    Muscle.GLUTES: "Glutes",
-    Muscle.HIP_ABDUCTORS: "Hips",
-    Muscle.HIP_ADDUCTORS: "Hips",
-    Muscle.HIP_FLEXORS: "Hips",
-    Muscle.CHEST: "Chest",
+    Muscle.LOWER_BACK: MuscleCategory.BACK,
+    Muscle.MIDDLE_BACK: MuscleCategory.BACK,
+    Muscle.UPPER_BACK: MuscleCategory.BACK,
+    Muscle.LATS: MuscleCategory.BACK,
+    Muscle.TRAPS: MuscleCategory.BACK,
+    Muscle.SHOULDERS: MuscleCategory.SHOULDERS,
+    Muscle.REAR_DELTS: MuscleCategory.SHOULDERS,
+    Muscle.ABS: MuscleCategory.CORE,
+    Muscle.OBLIQUES: MuscleCategory.CORE,
+    Muscle.BICEPS: MuscleCategory.BICEPS,
+    Muscle.TRICEPS: MuscleCategory.TRICEPS,
+    Muscle.FOREARMS: MuscleCategory.FOREARMS,
+    Muscle.QUADS: MuscleCategory.LEGS,
+    Muscle.HAMSTRINGS: MuscleCategory.LEGS,
+    Muscle.CALVES: MuscleCategory.LEGS,
+    Muscle.TIBIALIS: MuscleCategory.LEGS,
+    Muscle.GLUTES: MuscleCategory.GLUTES,
+    Muscle.HIP_ABDUCTORS: MuscleCategory.HIPS,
+    Muscle.HIP_ADDUCTORS: MuscleCategory.HIPS,
+    Muscle.HIP_FLEXORS: MuscleCategory.HIPS,
+    Muscle.CHEST: MuscleCategory.CHEST,
 }
 
 
@@ -120,8 +133,9 @@ class Exercise:
     def __hash__(self) -> int:
         return hash(self.name)
 
-    # def __init__(self):
-    #     self.muscle_category = MUSCLE_CATEGORY_MAPPING
+    def __post_init__(self):
+        # TODO: What to do with exercises, which have multiple primary muscles?
+        self.muscle_category = MUSCLE_CATEGORY_MAPPING[self.prime_muscles[0]]
 
     @staticmethod
     def join_muscles(muscles: List[Muscle]) -> str:
@@ -134,6 +148,7 @@ class ExerciseSearchCriteria:
     """Dataclass to hold search criteria for exercises."""
 
     muscles: Optional[List[Union[Muscle, str]]] = None
+    muscle_category: Optional[Union[MuscleCategory, str]] = None
     equipment: Optional[Union[Equipment, str]] = None
     mechanic: Optional[Union[Mechanic, str]] = None
     force: Optional[Union[Force, str]] = None
@@ -147,6 +162,7 @@ class ExerciseLibrary:
         self.exercises: Dict[str, Exercise] = {}
         # Index for faster lookups
         self._muscle_index: Dict[Muscle, Set[str]] = defaultdict(set)
+        self._muscle_category_index: Dict[MuscleCategory, Set[str]] = defaultdict(set)
         self._equipment_index: Dict[Equipment, Set[str]] = defaultdict(set)
         self._mechanic_index: Dict[Mechanic, Set[str]] = defaultdict(set)
         self._force_index: Dict[Force, Set[str]] = defaultdict(set)
@@ -165,6 +181,7 @@ class ExerciseLibrary:
             self._muscle_index[muscle].add(name)
 
         # Update other indices
+        self._muscle_category_index[exercise.muscle_category].add(name)
         self._equipment_index[exercise.equipment].add(name)
         self._mechanic_index[exercise.mechanic].add(name)
         self._force_index[exercise.force].add(name)
@@ -214,6 +231,12 @@ class ExerciseLibrary:
                     muscle = map_to_enum(muscle, Muscle)
                 muscle_exercises.update(self._muscle_index[muscle])
             result_set &= muscle_exercises
+
+        if criteria.muscle_category:
+            muscle_category = criteria.muscle_category
+            if isinstance(muscle_category, str):
+                muscle_category = map_to_enum(muscle_category, MuscleCategory)
+            result_set &= self._muscle_category_index[muscle_category]
 
         if criteria.equipment:
             equipment = criteria.equipment

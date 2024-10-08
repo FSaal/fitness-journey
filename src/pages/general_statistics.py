@@ -19,7 +19,7 @@ def get_general_statistics_page(df_fitness: pd.DataFrame) -> vm.Page:
     )
     def plot_cumulative_stuff(exercise_type, muscle_category, metric):
         if exercise_type and "ALL" not in exercise_type:
-            filtered_df = df_fitness[df_fitness["Exercise Type"].isin(exercise_type)]
+            filtered_df = df_fitness[df_fitness["Equipment"].isin(exercise_type)]
         else:
             filtered_df = df_fitness
 
@@ -58,7 +58,7 @@ def get_general_statistics_page(df_fitness: pd.DataFrame) -> vm.Page:
             ),
             vm.Dropdown(
                 id="dropdown-filter-exercise-type",
-                options=df_fitness["Exercise Type"].unique().tolist(),
+                options=df_fitness["Equipment"].unique().tolist(),
                 title="Filter by Exercise Type",
             ),
             vm.Dropdown(
