@@ -2,96 +2,24 @@ import dash_mantine_components as dmc
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from dash import dcc
-from dash_iconify import DashIconify
+import vizro.models as vm
+
+# import vizro.plotly.express as px
 from scipy.interpolate import interp1d
 from statsmodels.nonparametric.smoothers_lowess import lowess
+from vizro.models.types import capture
 
 
-def powerlifting_layout(df: pd.DataFrame, df_weight: pd.DataFrame) -> dmc.Stack:
-    """
-    This function returns a Dash component containing a scatter plot of powerlifting exercises.
-    """
-    powerlifting_exercises = [
-        "Barbell Squat",
-        "Barbell Bench Press",
-        "Barbell Deadlift",
-    ]
-    df_powerlifting = df[df["Exercise Name"].isin(powerlifting_exercises)]
-    fig = get_plot(df_powerlifting)
-
-    strength_cards = get_card_overview(df, powerlifting_exercises)
-    strength_cards = dmc.Group(strength_cards, gap="xl")
-
-    figure_bodyweight = get_bodyweight_figure(df_weight)
-
-    layout = dmc.Stack(
-        [
-            dmc.Center(strength_cards),
-            dmc.Paper(dcc.Graph(figure=fig), shadow="md"),
-            dmc.Paper(dcc.Graph(figure=figure_bodyweight), shadow="md"),
-        ]
-    )
-    return layout
-
-
-def get_card_overview(df, powerlifting_exercises):
-    strength_cards = []
-    exercise_icons = []
-    powerlifting_total = 0
-    for exercise in powerlifting_exercises:
-        df_exercise = df[df["Exercise Name"] == exercise]
-        # Information about PR
-        record_idx = df_exercise["Weight"].argmax()
-        record_date = df_exercise.index[record_idx].strftime("%d.%m.%y")
-        record_weight = df_exercise["Weight"].iloc[record_idx]
-        powerlifting_total += record_weight
-
-        total_reps = df_exercise["Repetitions"].sum()
-        # Total weight in tonnes
-        total_weight = (df_exercise["Weight"] * df_exercise["Repetitions"]).sum() / 1000
-        strength_cards.append(
-            strength_card(
-                exercise.split(" ")[1],
-                record_weight,
-                record_date,
-                total_reps,
-                total_weight,
-                "pajamas:weight",
-            )
-        )
-
-    powerlifting_total_lbs = powerlifting_total * 2.20462
-    total_card = dmc.Card(
-        children=[
-            dmc.Group(
-                [
-                    dmc.Text("Total", fw=700, size="xl"),
-                    dmc.Text(
-                        f"{powerlifting_total:.0f} kg\n({powerlifting_total_lbs:.0f} lbs)",
-                    ),
-                ]
-            )
-        ]
-    )
-    strength_cards.append(total_card)
-
-    return strength_cards
-
-
-def get_plot(df: pd.DataFrame) -> go.Figure:
+@capture("graph")
+def get_plot(data_frame: pd.DataFrame, first_date: pd.Timestamp, last_date: pd.Timestamp) -> go.Figure:
     fig = px.scatter(
-        df,
-        x="Time",
-        y="Weight",
-        color="Exercise Name",
-        symbol="Exercise Name",
+        data_frame, x="Time", y="Weight [kg]", color="Exercise Name", symbol="Exercise Name", template="plotly_dark"
     )
-    fig.update_layout(yaxis_title="Weight [kg]", title_text="Powerlifting Exercises")
+    fig.update_layout(xaxis_range=[first_date, last_date])
     fig.update(
         data=[
             {
-                "customdata": df["Repetitions"],
+                "customdata": data_frame["Repetitions"],
                 "hovertemplate": "Time: %{x}<br>Weight: %{y} kg<br>Repetitions: %{customdata}",
             }
         ]
@@ -99,50 +27,41 @@ def get_plot(df: pd.DataFrame) -> go.Figure:
     return fig
 
 
+def get_powerlifting_statistic_page(df_fitness: pd.DataFrame, df_bodyweight: pd.DataFrame) -> dmc.Stack:
+    powerlifting_exercises = [
+        "Barbell Squat",
+        "Barbell Bench Press",
+        "Barbell Deadlift",
+    ]
+    df_powerlifting = df_fitness[df_fitness["Exercise Name"].isin(powerlifting_exercises)]
+
+    # Get first date between the two dataframes, to have same x axis (time scale)
+    first_date = min(df_powerlifting["Time"].min(), df_bodyweight["Time"].min())
+    last_date = max(df_powerlifting["Time"].max(), df_bodyweight["Time"].max())
+
+    page = vm.Page(
+        title="PowerLifting Statistics",
+        components=[
+            vm.Graph(figure=get_plot(df_powerlifting, first_date, last_date)),
+            vm.Graph(figure=get_bodyweight_figure(df_bodyweight, first_date, last_date)),
+        ],
+    )
+    return page
+
+
 def calculate_wilks_score():
     return None
 
 
-def strength_card(exercise, weight, date, total_reps, total_weight, icon, icon_size=30):
-    return dmc.Card(
-        children=[
-            dmc.Stack(
-                [
-                    dmc.Group(
-                        [
-                            dmc.Text(children=exercise, fw=700, size="xl"),
-                            DashIconify(icon=icon, width=icon_size),
-                        ],
-                        justify="apart",
-                    ),
-                    dmc.Group(
-                        [
-                            dmc.Text(children=weight, fw=500, size="xl"),
-                            dmc.Text(children=date, c="dimmed", size="sm", ta="right"),
-                        ]
-                    ),
-                    dmc.Group(
-                        [
-                            dmc.Text(children=f"Reps: {total_reps}"),
-                            dmc.Text(children=f"Weight: {total_weight:.0f} t"),
-                        ]
-                    ),
-                ],
-                gap="sm",
-            )
-        ],
-        shadow="sm",
-    )
-
-
-def get_bodyweight_figure(df_weight: pd.DataFrame) -> go.Figure:
+@capture("graph")
+def get_bodyweight_figure(data_frame: pd.DataFrame, first_date: pd.Timestamp, last_date: pd.Timestamp) -> go.Figure:
     # Create trendline
-    time_num = df_weight["Time"].astype(int) / 10**9
-    lowess_smoothed = lowess(df_weight["Weight"], time_num, frac=0.15)
+    time_num = data_frame["Time"].astype(int) / 10**9
+    lowess_smoothed = lowess(data_frame["Weight [kg]"], time_num, frac=0.15)
     interp_func = interp1d(lowess_smoothed[:, 0], lowess_smoothed[:, 1], kind="cubic", fill_value="extrapolate")
     # Generate more frequent time points for a smoother curve (one per day)
-    n_days = (df_weight["Time"].max() - df_weight["Time"].min()).days
-    dense_time = pd.date_range(start=df_weight["Time"].min(), end=df_weight["Time"].max(), periods=n_days)
+    n_days = (data_frame["Time"].max() - data_frame["Time"].min()).days
+    dense_time = pd.date_range(start=data_frame["Time"].min(), end=data_frame["Time"].max(), periods=n_days)
     dense_time_num = dense_time.astype(int) / 10**9
 
     # Create the figure
@@ -151,8 +70,8 @@ def get_bodyweight_figure(df_weight: pd.DataFrame) -> go.Figure:
     # Add scattered points
     fig.add_trace(
         go.Scatter(
-            x=df_weight["Time"],
-            y=df_weight["Weight"],
+            x=data_frame["Time"],
+            y=data_frame["Weight [kg]"],
             mode="markers",
             name="Measured Weight",
         )
@@ -177,6 +96,8 @@ def get_bodyweight_figure(df_weight: pd.DataFrame) -> go.Figure:
         title="Bodyweight",
         xaxis_title="Time",
         yaxis_title="Weight [kg]",
+        xaxis_range=[first_date, last_date],
+        template="plotly_dark",
     )
     return fig
 
@@ -185,6 +106,7 @@ def add_weight_class_line(fig: go.Figure, weight_class: int) -> None:
     fig.add_hline(
         y=weight_class,
         line_dash="dash",
+        line_color="gray",
         line_width=0.5,
         annotation_text=f"{weight_class} kg Weight Class",
         annotation_position="bottom left",

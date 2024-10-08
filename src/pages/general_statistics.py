@@ -1,31 +1,74 @@
-import dash_mantine_components as dmc
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
-from dash import dcc, html
+import vizro.models as vm
+
+# import plotly.express as px
+import vizro.plotly.express as px
+from dash import Input, Output, callback, dcc
+from vizro.models.types import capture
 from wordcloud import WordCloud
 
 
-def time_layout(df):
-    training_days_per_week = training_days(df)
-    training_time_per_day = training_time(df)
-    moved_weight = lifted_weight(df)
-    performed_reps = done_reps(df)
-    word_cloud = generate_wordcloud(df)
-    layout = [
-        dmc.SimpleGrid(
-            cols=2,
-            children=[
-                dmc.Paper(training_days_per_week, shadow="md"),
-                dmc.Paper(training_time_per_day, shadow="md"),
-                dmc.Paper(moved_weight, shadow="md"),
-                dmc.Paper(performed_reps, shadow="md"),
-            ],
-        ),
-        html.Br(),
-        dmc.Center(dmc.Paper(word_cloud, shadow="md")),
-    ]
-    return layout
+def get_general_statistics_page(df_fitness: pd.DataFrame) -> vm.Page:
+    @callback(
+        Output("graph-cumulative", "figure", allow_duplicate=True),
+        Input("dropdown-filter-exercise-type", "value"),
+        Input("dropdown-filter-muscle-category", "value"),
+        Input("dropdown-cumulative-metric", "value"),
+        prevent_initial_call=True,
+    )
+    def plot_cumulative_stuff(exercise_type, muscle_category, metric):
+        if exercise_type and "ALL" not in exercise_type:
+            filtered_df = df_fitness[df_fitness["Exercise Type"].isin(exercise_type)]
+        else:
+            filtered_df = df_fitness
+
+        if muscle_category and "ALL" not in muscle_category:
+            filtered_df = filtered_df[filtered_df["Muscle Category"].isin(muscle_category)]
+        else:
+            filtered_df = filtered_df
+
+        if metric == "Repetitions":
+            cumulative_series = filtered_df["Repetitions"].cumsum()
+        elif metric == "Sets":
+            # Normal Set Order column can not be used, since it is not 1 per set
+            filtered_df["Sets"] = 1
+            cumulative_series = filtered_df["Sets"].cumsum()
+        elif metric == "Weight [kg]":
+            cumulative_series = (filtered_df["Weight [kg]"] * filtered_df["Repetitions"]).cumsum().rename("Weight [kg]")
+        fig = px.area(cumulative_series, y=metric)
+        return fig
+
+    vm.Page.add_type("controls", vm.Dropdown)
+    page = vm.Page(
+        title="General Statistics",
+        components=[
+            vm.Graph(figure=training_days(df_fitness), title="Training Days per Week"),
+            vm.Graph(figure=training_time(df_fitness), title="Training Duration per Session"),
+            # Average rest time between sets per day
+            # vm.Graph(figure=rest_time(df_fitness), title="Rest Time between Sets"),
+            vm.Graph(id="graph-cumulative", figure=lifted_weight(df_fitness), title="Lifted Weight"),
+        ],
+        controls=[
+            vm.Dropdown(
+                id="dropdown-cumulative-metric",
+                options=["Weight [kg]", "Repetitions", "Sets"],
+                value="Repetitions",
+                multi=False,
+            ),
+            vm.Dropdown(
+                id="dropdown-filter-exercise-type",
+                options=df_fitness["Exercise Type"].unique().tolist(),
+                title="Filter by Exercise Type",
+            ),
+            vm.Dropdown(
+                id="dropdown-filter-muscle-category",
+                options=df_fitness["Muscle Category"].unique().tolist(),
+                title="Filter by Muscle Category",
+            ),
+        ],
+    )
+    return page
 
 
 def generate_wordcloud(df: pd.DataFrame):
@@ -54,26 +97,25 @@ def generate_wordcloud(df: pd.DataFrame):
     return dcc.Graph(figure=fig)
 
 
-def training_days(df):
+@capture("graph")
+def training_days(data_frame):
     """Calculate the number of training days per week."""
-    df["Week"] = df.index.strftime("%Y-%U")
-    df["Day"] = df.index.day
-    days_per_week = df.groupby("Week", observed=True)["Day"].nunique().reset_index()
+    data_frame["Week"] = data_frame.index.strftime("%Y-%U")
+    data_frame["Day"] = data_frame.index.day
+    days_per_week = data_frame.groupby("Week", observed=True)["Day"].nunique().reset_index()
     days_per_week.columns = ["Week", "Days"]
     days_per_week["Week"] = pd.to_datetime(days_per_week["Week"] + "-1", format="%Y-%U-%w")
-    fig = px.bar(days_per_week, x="Week", y="Days")
-    fig.update_layout(
-        xaxis=dict(tickformat="CW %W<br>%Y", title="Time"),
-        yaxis_range=[0, 7],
-        title="Days Trained per Week",
-    )
-    fig.update_layout(yaxis_range=[0, 7])
-    return dcc.Graph(figure=fig)
+    fig = px.bar(days_per_week, x="Week", y="Days", template="plotly_dark")
+    fig.update_layout(xaxis=dict(tickformat="CW %W<br>%Y", title="Week"), yaxis_range=[0, 7])
+    mean_days = days_per_week["Days"].mean()
+    fig.add_hline(y=mean_days, line_dash="dash", line_color="gray")
+    return fig
 
 
-def training_time(df):
+@capture("graph")
+def training_time(data_frame):
     """Calculate the training time per day."""
-    training_time_per_day = df.groupby(df.index.date, observed=True)["Time"].apply(
+    training_time_per_day = data_frame.groupby(data_frame.index.date, observed=True)["Time"].apply(
         lambda x: (x.max() - x.min()).total_seconds() / 60
     )
     fig = px.histogram(
@@ -81,24 +123,19 @@ def training_time(df):
         x=training_time_per_day.values,
         nbins=int((training_time_per_day.max() + 10) / 10),
         range_x=(0, 150),
+        template="plotly_dark",
     )
     fig.update_layout(
-        title="Training Time per Training Day",
-        xaxis_title="Time (min)",
+        xaxis_title="Time [min]",
         yaxis_title="Sessions",
     )
-    return dcc.Graph(figure=fig)
+    return fig
 
 
-def lifted_weight(df):
-    lifted_weight = (df["Weight"] * df["Repetitions"]).cumsum().rename("Weight")
-    fig = px.area(lifted_weight, y="Weight")
+@capture("graph")
+def lifted_weight(data_frame):
+    lifted_weight = (data_frame["Weight [kg]"] * data_frame["Repetitions"]).cumsum().rename("Weight [kg]")
+    done_reps = data_frame["Repetitions"].cumsum()
+    fig = px.area(lifted_weight, y="Weight [kg]", template="plotly_dark")
     fig.update_layout(title="Lifted Weight cumulative sum", yaxis_title="Weight [kg]")
-    return dcc.Graph(figure=fig)
-
-
-def done_reps(df):
-    done_reps = df["Repetitions"].cumsum()
-    fig = px.area(done_reps, y="Repetitions")
-    fig.update_layout(title="Performed Repetitions cumulative sum", yaxis_title="Repetitions")
-    return dcc.Graph(figure=fig)
+    return fig
