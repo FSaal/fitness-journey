@@ -1,0 +1,1 @@
+This directory contains the old project, which is based on dash mantine components.

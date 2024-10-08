@@ -115,6 +115,7 @@ def create_app():
 
     @callback(Output("button-toggle-sidebar", "opened"), Input("tabs", "value"))
     def hide_sidebar(selected_tab):
+        """Hide the sidebar if the selected tab is not "Exercise"."""
         return selected_tab == "exercise"
 
     @callback(
