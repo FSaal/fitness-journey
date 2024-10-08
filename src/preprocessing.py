@@ -4,6 +4,17 @@ from pathlib import Path
 
 import pandas as pd
 
+from exercise_compendium import (
+    Equipment,
+    Exercise,
+    ExerciseLibrary,
+    ExerciseSearchCriteria,
+    Force,
+    Mechanic,
+    Muscle,
+    create_exercise_library,
+)
+
 
 class PreprocessClass:
     def __init__(
@@ -145,7 +156,7 @@ class PreprocessClass:
     # Prepare the two dataframes for the merging into one
     # Map columns which hold the same information, only named differently
     @staticmethod
-    def rename_columns(df: pd.DataFrame) -> pd.DataFrame:
+    def rename_gymbook_columns(df: pd.DataFrame) -> pd.DataFrame:
         """Rename gymbook columns to match naming of progression app"""
         column_name_mapping = {
             "Datum": "Date",
@@ -170,7 +181,7 @@ class PreprocessClass:
 
     def adapt_columns(self, df: pd.DataFrame) -> pd.DataFrame:
         """Rename and convert gymbook columns to match progression columns"""
-        df = self.rename_columns(df)
+        df = self.rename_gymbook_columns(df)
         df = self.convert_columns(df)
         return df
 
@@ -303,7 +314,8 @@ class PreprocessClass:
         return df
 
     @staticmethod
-    def add_muscle_category(df: pd.DataFrame) -> pd.DataFrame:
+    def add_muscle_categories(df: pd.DataFrame, exercises: ExerciseLibrary) -> pd.DataFrame:
+        # exercises.search_exercises(ExerciseSearchCriteria(muscles=Muscle))
         # Convert from german to english
         map_muscle_category_ger_eng = {
             "Arme": "Arms",
@@ -392,56 +404,30 @@ class PreprocessClass:
         return df
 
     @staticmethod
-    def add_exercise_category(df: pd.DataFrame) -> pd.DataFrame:
-        map_exercise_to_type = {
-            "Barbell": {
-                "Bar",
-                "Box Squat",
-                "Clean",
-                "Ez-Bar",
-                "Hexbar Deadlift",
-                "Barbell",
-            },
-            "Bodyweight": {
-                "Ab",
-                "Burpee",
-                "Chinup",
-                "Cossaq Squat",
-                "Crunch",
-                "Dip",
-                "Glute Ham Raise",
-                "Hanging Leg Raise",
-                "Incline Sit-Up",
-                "Pistol Squat",
-                "Plank",
-                "Pullup",
-                "Pushup",
-                "Razor Curl",
-                "Russian Twist",
-            },
-            "Cable": {"Cable", "One-Arm Lat Pull-Down", "Push-Down"},
-            "Dumbbell": {
-                "Bulgarian Split Squat",
-                "Dumbbell",
-                "Goblet Squat",
-                "Larsen Press",
-                "Press Around",
-                "Walking Lunge",
-            },
-            "Kettlebell": {"Kettlebell"},
-            "Machine": {
-                "Calf Press In Leg Press",
-                "Glute Drive",
-                "Machine",
-                "Single-Leg Press",
-                "Standing Calf Raisees",
-            },
-        }
+    def add_exercise_category(
+        df: pd.DataFrame, exercises: ExerciseLibrary, category_type: type, column_name: str = None
+    ) -> pd.DataFrame:
+        if column_name is None:
+            column_name = f"{category_type.__name__} Category"
+        exercise_to_category = {}
 
-        df["Exercise Type"] = "Other"
-        for exercise_type, exercise in map_exercise_to_type.items():
-            mask = df["Exercise Name"].str.contains("|".join(exercise))
-            df.loc[mask, "Exercise Type"] = exercise_type
+        for category in list(category_type):
+            if category_type == Equipment:
+                search_criteria = ExerciseSearchCriteria(equipment=category)
+            elif category_type == Mechanic:
+                search_criteria = ExerciseSearchCriteria(mechanic=category)
+            elif category_type == Force:
+                search_criteria = ExerciseSearchCriteria(force=category)
+            else:
+                raise ValueError(f"Unknown category type: {category_type}")
+
+            category_exercises = exercises.search_exercises(search_criteria)
+            for exercise in category_exercises:
+                exercise_to_category[exercise.name] = category.value.capitalize()
+
+        df = df.copy()
+        # Add information about exercise type to each set
+        df[column_name] = df["Exercise Name"].map(exercise_to_category).astype("category")
         return df
 
     @staticmethod
@@ -450,8 +436,6 @@ class PreprocessClass:
         df["Weight"] = df["Weight"].fillna(0).astype(float)
 
         df["Repetitions"] = df["Repetitions"].astype(int)
-        df["Muscle Category"] = df["Muscle Category"].astype("category")
-        df["Exercise Type"] = df["Exercise Type"].astype("category")
         return df
 
     @staticmethod
@@ -472,12 +456,18 @@ class PreprocessClass:
         return df
 
     @staticmethod
+    def rename_columns(df: pd.DataFrame) -> pd.DataFrame:
+        """Rename columns"""
+        df = df.rename(columns={"Session Duration (s)": "Session Duration [s]", "Weight": "Weight [kg]"})
+        return df
+
+    @staticmethod
     def clean_up_data(df: pd.DataFrame) -> pd.DataFrame:
         """Remove and/or edit inplausible data"""
         # Limit gym session duration
         # Workout session of more than 3 hours must be a mistake
         session_time_limit_s = 3 * 60 * 60
-        df_too_long = df[df["Session Duration (s)"] > session_time_limit_s]
+        df_too_long = df[df["Session Duration [s]"] > session_time_limit_s]
         # Find entry which differs greatly from the other entries
         outlier = df_too_long[df_too_long["Time"].diff() > pd.Timedelta(hours=1)]
         # Get the entry before, because...
@@ -485,8 +475,8 @@ class PreprocessClass:
         # Remove outlier from dataframe
         df = df.drop(outlier_id)
         # Recalculate session duration
-        df_too_long = df[df["Session Duration (s)"] > session_time_limit_s]
-        df.loc[df["Session Duration (s)"] > session_time_limit_s, "Session Duration (s)"] = (
+        df_too_long = df[df["Session Duration [s]"] > session_time_limit_s]
+        df.loc[df["Session Duration [s]"] > session_time_limit_s, "Session Duration [s]"] = (
             df_too_long.groupby(df["Time"].dt.date, observed=True)["Time"]
             .transform(lambda x: x.max() - x.min())
             .dt.seconds
@@ -497,6 +487,8 @@ class PreprocessClass:
         return df
 
     def main(self):
+        exercises = create_exercise_library()
+
         # Data file of Progression app (android)
         fixed_progression_csv = self.fix_progression_csv(self.progression_path)
         df_progression = self.read_csv(fixed_progression_csv, self.PROGRESSION_NAME)
@@ -533,10 +525,13 @@ class PreprocessClass:
         df = df.sort_values("Time", ascending=False)
 
         df = self.match_exercise_names(df)
-        df = self.add_muscle_category(df)
-        df = self.add_exercise_category(df)
+        df = self.add_muscle_categories(df, exercises)
+        df = self.add_exercise_category(df, exercises, Equipment, "Equipment")
+        df = self.add_exercise_category(df, exercises, Mechanic, "Mechanic")
+        df = self.add_exercise_category(df, exercises, Force, "Force")
         df = self.fix_dtypes(df)
         df = self.add_other_stuff(df)
+        df = self.rename_columns(df)
 
         df = df.sort_values("Time").reset_index(drop=True)
         df = self.clean_up_data(df)
@@ -564,5 +559,6 @@ class PreprocessClass:
         # Sort by time
         df_weight = df_weight.sort_values("Time")
         df_weight = df_weight.reset_index(drop=True)
+        df_weight = df_weight.rename(columns={"Weight": "Weight [kg]"})
 
         return df_weight
