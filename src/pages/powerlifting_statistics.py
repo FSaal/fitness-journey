@@ -13,7 +13,12 @@ from vizro.models.types import capture
 @capture("graph")
 def get_plot(data_frame: pd.DataFrame, first_date: pd.Timestamp, last_date: pd.Timestamp) -> go.Figure:
     fig = px.scatter(
-        data_frame, x="Time", y="Weight [kg]", color="Exercise Name", symbol="Exercise Name", template="plotly_dark"
+        data_frame,
+        x=data_frame.index,
+        y="Weight [kg]",
+        color="Exercise Name",
+        symbol="Exercise Name",
+        template="plotly_dark",
     )
     fig.update_layout(xaxis_range=[first_date, last_date])
     fig.update(
@@ -36,8 +41,8 @@ def get_powerlifting_statistic_page(df_fitness: pd.DataFrame, df_bodyweight: pd.
     df_powerlifting = df_fitness[df_fitness["Exercise Name"].isin(powerlifting_exercises)]
 
     # Get first date between the two dataframes, to have same x axis (time scale)
-    first_date = min(df_powerlifting["Time"].min(), df_bodyweight["Time"].min())
-    last_date = max(df_powerlifting["Time"].max(), df_bodyweight["Time"].max())
+    first_date = min(df_powerlifting.index.min(), df_bodyweight.index.min())
+    last_date = max(df_powerlifting.index.max(), df_bodyweight.index.max())
 
     page = vm.Page(
         title="PowerLifting Statistics",
@@ -56,12 +61,12 @@ def calculate_wilks_score():
 @capture("graph")
 def get_bodyweight_figure(data_frame: pd.DataFrame, first_date: pd.Timestamp, last_date: pd.Timestamp) -> go.Figure:
     # Create trendline
-    time_num = data_frame["Time"].astype(int) / 10**9
+    time_num = data_frame.index.astype(int) / 10**9
     lowess_smoothed = lowess(data_frame["Weight [kg]"], time_num, frac=0.15)
     interp_func = interp1d(lowess_smoothed[:, 0], lowess_smoothed[:, 1], kind="cubic", fill_value="extrapolate")
     # Generate more frequent time points for a smoother curve (one per day)
-    n_days = (data_frame["Time"].max() - data_frame["Time"].min()).days
-    dense_time = pd.date_range(start=data_frame["Time"].min(), end=data_frame["Time"].max(), periods=n_days)
+    n_days = (data_frame.index.max() - data_frame.index.min()).days
+    dense_time = pd.date_range(start=data_frame.index.min(), end=data_frame.index.max(), periods=n_days)
     dense_time_num = dense_time.astype(int) / 10**9
 
     # Create the figure
@@ -70,7 +75,7 @@ def get_bodyweight_figure(data_frame: pd.DataFrame, first_date: pd.Timestamp, la
     # Add scattered points
     fig.add_trace(
         go.Scatter(
-            x=data_frame["Time"],
+            x=data_frame.index,
             y=data_frame["Weight [kg]"],
             mode="markers",
             name="Measured Weight",

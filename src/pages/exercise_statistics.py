@@ -262,7 +262,7 @@ def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
         # Plot - Weight over time
         figure_weight = px.scatter(
             data_frame,
-            x="Time",
+            x=data_frame.index,
             y="Weight [kg]",
             color="Repetitions",
             range_color=color_scale_range,
@@ -332,7 +332,7 @@ def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
                 .reset_index()
             )
 
-        figure_1rm = px.scatter(df_reliable, x="Time", y="1RM", color="Repetitions", template="plotly_dark")
+        figure_1rm = px.scatter(df_reliable, x=df_reliable.index, y="1RM", color="Repetitions", template="plotly_dark")
         figure_1rm.update(
             data=[
                 {
@@ -343,7 +343,7 @@ def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
         )
         figure_1rm.add_trace(
             go.Scatter(
-                x=df_unreliable["Time"],
+                x=df_unreliable.index,
                 y=df_unreliable["1RM"],
                 mode="markers",
                 # Make markers diamonds
