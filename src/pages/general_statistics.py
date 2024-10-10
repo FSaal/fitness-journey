@@ -63,7 +63,7 @@ def get_general_statistics_page(df_fitness: pd.DataFrame) -> vm.Page:
             ),
             vm.Dropdown(
                 id="dropdown-filter-muscle-category",
-                options=df_fitness["Muscle Category"].unique().tolist(),
+                options=df_fitness["MuscleCategory"].unique().tolist(),
                 title="Filter by Muscle Category",
             ),
         ],
@@ -108,15 +108,15 @@ def training_days(data_frame):
     fig = px.bar(days_per_week, x="Week", y="Days", template="plotly_dark")
     fig.update_layout(xaxis=dict(tickformat="CW %W<br>%Y", title="Week"), yaxis_range=[0, 7])
     mean_days = days_per_week["Days"].mean()
-    fig.add_hline(y=mean_days, line_dash="dash", line_color="gray")
+    fig.add_hline(y=mean_days, name=f"Mean: {int(mean_days)}", line_dash="dash", line_color="gray")
     return fig
 
 
 @capture("graph")
 def training_time(data_frame):
     """Calculate the training time per day."""
-    training_time_per_day = data_frame.groupby(data_frame.index.date, observed=True)["Time"].apply(
-        lambda x: (x.max() - x.min()).total_seconds() / 60
+    training_time_per_day = data_frame.groupby(data_frame.index.date).apply(
+        lambda group: (group.index.max() - group.index.min()).total_seconds() / 60
     )
     fig = px.histogram(
         training_time_per_day,
@@ -125,10 +125,7 @@ def training_time(data_frame):
         range_x=(0, 150),
         template="plotly_dark",
     )
-    fig.update_layout(
-        xaxis_title="Time [min]",
-        yaxis_title="Sessions",
-    )
+    fig.update_layout(xaxis_title="Time [min]", yaxis_title="Sessions")
     return fig
 
 

@@ -23,14 +23,14 @@ def get_exercise_distribution_page(df_fitness: pd.DataFrame):
         components=[
             vm.Graph(
                 id="exercise-sunburst",
-                figure=px.sunburst(df_fitness, path=["Muscle Category", "Exercise Name"], values="Repetitions"),
+                figure=px.sunburst(df_fitness, path=["MuscleCategory", "Exercise Name"], values="Repetitions"),
             )
         ],
         controls=[
             vm.Dropdown(
                 id="dropdown-category",
-                options=["Muscle Category", "Equipment", "Force", "Mechanic", "Weekday"],
-                value="Muscle Category",
+                options=["MuscleCategory", "Equipment", "Force", "Mechanic", "Weekday"],
+                value="MuscleCategory",
                 title="Category",
                 multi=False,
             ),
