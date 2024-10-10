@@ -324,7 +324,7 @@ The alternating dumbbell hammer curl is an isolation exercise that targets the b
 Unlike the standard dumbbell curl, this variation uses a neutral grip, which shifts more focus to the brachialis and forearms, promoting arm strength and grip endurance.""",
         ),
         Exercise(
-            name="Arnold Dumbbell Press (Seated)",
+            name="Arnold Dumbbell Press (seated)",
             force=Force.PUSH,
             mechanic=Mechanic.COMPOUND,
             equipment=Equipment.DUMBBELL,
@@ -338,7 +338,7 @@ It enhances shoulder mobility, builds upper body strength, and engages multiple 
 Unlike the standard dumbbell shoulder press, this variation includes a rotation at the wrists, activating more of the deltoids and enhancing shoulder flexibility.""",
         ),
         Exercise(
-            name="Arnold Dumbbell Press (Standing)",
+            name="Arnold Dumbbell Press (standing)",
             force=Force.PUSH,
             mechanic=Mechanic.COMPOUND,
             equipment=Equipment.DUMBBELL,
@@ -518,7 +518,7 @@ The barbell shoulder press is a fundamental compound exercise that primarily tar
 This movement builds upper body strength, stability, and muscle definition, essential for various athletic activities and daily tasks.""",
         ),
         Exercise(
-            name="Barbell Shoulder Press (Seated)",
+            name="Barbell Shoulder Press (seated)",
             force=Force.PUSH,
             mechanic=Mechanic.COMPOUND,
             equipment=Equipment.BARBELL,
@@ -566,7 +566,7 @@ The barbell sumo deadlift is a compound exercise that emphasizes the glutes whil
 This variation allows for a wider stance, which reduces strain on the lower back and enhances hip mobility, making it an effective choice for lower body strength development.""",
         ),
         Exercise(
-            name="Barbell Triceps Extension (Seated)",
+            name="Barbell Triceps Extension (seated)",
             force=Force.PUSH,
             mechanic=Mechanic.ISOLATION,
             equipment=Equipment.BARBELL,
@@ -576,7 +576,7 @@ The seated barbell triceps extension is an isolation exercise focusing on the tr
 This movement is effective for building upper arm strength and definition, helping to improve performance in pressing movements and overall arm aesthetics.""",
         ),
         Exercise(
-            name="Bent-Over Dumbbell Row",
+            name="Bent-over Dumbbell Row",
             force=Force.PULL,
             mechanic=Mechanic.COMPOUND,
             equipment=Equipment.DUMBBELL,
@@ -586,24 +586,24 @@ This movement is effective for building upper arm strength and definition, helpi
 This exercise targets the lats and middle back, while also engaging the biceps for a complete upper body workout.""",
         ),
         Exercise(
-            name="Bent-Over Machine T-Bar Row",
+            name="Bent-over Machine T-bar Row",
             force=Force.PULL,
             mechanic=Mechanic.COMPOUND,
             equipment=Equipment.MACHINE,
             prime_muscles=[Muscle.LATS],
             secondary_muscles=[Muscle.MIDDLE_BACK, Muscle.BICEPS],
             description="""
-This machine variation of the T-Bar row engages the lats and upper back, while providing stability and control during the movement.""",
+This machine variation of the T-bar row engages the lats and upper back, while providing stability and control during the movement.""",
         ),
         Exercise(
-            name="Bent-Over T-Bar Row",
+            name="Bent-over T-bar Row",
             force=Force.PULL,
             mechanic=Mechanic.COMPOUND,
             equipment=Equipment.BARBELL,
             prime_muscles=[Muscle.LATS],
             secondary_muscles=[Muscle.MIDDLE_BACK, Muscle.BICEPS],
             description="""
-The bent-over T-Bar row focuses on the lats and upper back, providing a challenging row movement with additional core engagement.""",
+The bent-over T-bar row focuses on the lats and upper back, providing a challenging row movement with additional core engagement.""",
         ),
         Exercise(
             name="Bicycle Crunch",
@@ -847,7 +847,7 @@ The chinup is a bodyweight compound movement that primarily targets the lats, wi
 The clean and jerk is a complex full-body movement that primarily targets the quads, while engaging the glutes, shoulders, and traps for power and stability.""",
         ),
         Exercise(
-            name="Close-Grip Barbell Bench Press",
+            name="Close-grip Barbell Bench Press",
             force=Force.PUSH,
             mechanic=Mechanic.COMPOUND,
             equipment=Equipment.BARBELL,
@@ -857,7 +857,7 @@ The clean and jerk is a complex full-body movement that primarily targets the qu
 The close-grip barbell bench press focuses on the triceps, with secondary engagement of the chest, promoting upper body strength.""",
         ),
         Exercise(
-            name="Close-Grip Machine Lat Pull-Down",
+            name="Close-grip Machine Lat Pull-down",
             force=Force.PULL,
             mechanic=Mechanic.COMPOUND,
             equipment=Equipment.MACHINE,
@@ -867,7 +867,7 @@ The close-grip barbell bench press focuses on the triceps, with secondary engage
 The close-grip machine lat pull-down targets the lats with a close grip, helping to improve upper body pulling strength and muscle development.""",
         ),
         Exercise(
-            name="Close-Grip Pushup",
+            name="Close-grip Pushup",
             force=Force.PUSH,
             mechanic=Mechanic.COMPOUND,
             equipment=Equipment.BODY_WEIGHT,
@@ -887,7 +887,7 @@ The close-grip pushup emphasizes the triceps while also engaging the chest, offe
 The Cossack squat is a unilateral exercise that targets the quads and glutes, improving balance, flexibility, and lower body strength.""",
         ),
         Exercise(
-            name="Cross-Body Lat Pull-Around",
+            name="Cross-body Lat Pull-around",
             force=Force.PULL,
             mechanic=Mechanic.ISOLATION,
             equipment=Equipment.MACHINE,
@@ -1067,7 +1067,7 @@ The dumbbell shoulder press is a compound exercise that targets the shoulders an
 This movement builds upper body strength, stability, and muscle coordination, contributing to improved performance in various pressing activities.""",
         ),
         Exercise(
-            name="Dumbbell Shoulder Press (Seated)",
+            name="Dumbbell Shoulder Press (seated)",
             force=Force.PUSH,
             mechanic=Mechanic.COMPOUND,
             equipment=Equipment.DUMBBELL,
@@ -1129,7 +1129,7 @@ The dumbbell wrist curl is an isolation exercise that primarily targets the fore
 This movement enhances grip strength and wrist stability, supporting better performance in various upper body exercises.""",
         ),
         Exercise(
-            name="Ez-Bar Curl",
+            name="Ez-bar Curl",
             force=Force.PULL,
             mechanic=Mechanic.ISOLATION,
             equipment=Equipment.BARBELL,
@@ -1138,12 +1138,12 @@ This movement enhances grip strength and wrist stability, supporting better perf
 The Ez-bar curl is an isolation exercise that primarily targets the biceps. The curved bar allows for a more natural grip, reducing strain on the wrists.""",
         ),
         Exercise(
-            name="Ez-Bar Preacher Curl",
+            name="Ez-bar Preacher Curl",
             force=Force.PULL,
             mechanic=Mechanic.ISOLATION,
             equipment=Equipment.BARBELL,
             prime_muscles=[Muscle.BICEPS],
-            is_variation_of="Ez-Bar Curl",
+            is_variation_of="Ez-bar Curl",
             description="""
 The Ez-bar preacher curl is a variation of the Ez-bar curl performed on a preacher bench, which helps to isolate the biceps by eliminating momentum and increasing the range of motion.""",
         ),
@@ -1261,12 +1261,12 @@ The incline dumbbell curl is a variation of the dumbbell curl performed on an in
 The incline dumbbell fly is a variation of the dumbbell fly that targets the upper chest, placing more emphasis on the upper pectoral muscles due to the inclined bench position.""",
         ),
         Exercise(
-            name="Incline Sit-Up",
+            name="Incline Sit-up",
             force=Force.PULL,
             mechanic=Mechanic.ISOLATION,
             equipment=Equipment.BODY_WEIGHT,
             prime_muscles=[Muscle.ABS],
-            is_variation_of="Sit-Up",
+            is_variation_of="Sit-up",
             description="""
 The incline sit-up is a variation of the traditional sit-up performed on an inclined bench, which increases the intensity by adding resistance due to gravity.""",
         ),
@@ -1462,7 +1462,7 @@ The machine lying leg curl isolates the hamstrings, promoting strength and muscl
 The machine pullover is a compound movement that primarily targets the lats while engaging the chest and shoulders for upper body development.""",
         ),
         Exercise(
-            name="Machine Push-Down",
+            name="Machine Push-down",
             force=Force.PUSH,
             mechanic=Mechanic.ISOLATION,
             equipment=Equipment.MACHINE,
@@ -1491,7 +1491,7 @@ The machine row is a compound exercise that targets the lats, while also engagin
 The machine shoulder press is a compound exercise that targets the shoulders and triceps, offering guided resistance for building upper body strength.""",
         ),
         Exercise(
-            name="Machine Single-Leg Extension",
+            name="Machine Single-leg Extension",
             force=Force.PUSH,
             mechanic=Mechanic.ISOLATION,
             equipment=Equipment.MACHINE,
@@ -1500,7 +1500,7 @@ The machine shoulder press is a compound exercise that targets the shoulders and
 The machine single-leg extension isolates one quadricep at a time, allowing for better focus on strength and muscle balance.""",
         ),
         Exercise(
-            name="Machine Thigh Abduction (Out)",
+            name="Machine Thigh Abduction (out)",
             force=Force.PUSH,
             mechanic=Mechanic.ISOLATION,
             equipment=Equipment.MACHINE,
@@ -1509,7 +1509,7 @@ The machine single-leg extension isolates one quadricep at a time, allowing for 
 The machine thigh abduction targets the hip abductors, improving strength and mobility in the outer thigh and hip area.""",
         ),
         Exercise(
-            name="Machine Thigh Adduction (In)",
+            name="Machine Thigh Adduction (in)",
             force=Force.PUSH,
             mechanic=Mechanic.ISOLATION,
             equipment=Equipment.MACHINE,
@@ -1518,7 +1518,7 @@ The machine thigh abduction targets the hip abductors, improving strength and mo
 The machine thigh adduction targets the inner thigh muscles, helping to strengthen the hip adductors for improved leg stability and coordination.""",
         ),
         Exercise(
-            name="Machine V-Bar Lat Pulldown",
+            name="Machine V-bar Lat Pulldown",
             force=Force.PULL,
             mechanic=Mechanic.COMPOUND,
             equipment=Equipment.MACHINE,
@@ -1529,7 +1529,7 @@ The machine thigh adduction targets the inner thigh muscles, helping to strength
 The machine V-bar lat pulldown is a variation of the lat pulldown that uses a V-bar to emphasize the lower lats and biceps by altering the hand positioning.""",
         ),
         Exercise(
-            name="One-Arm Lat Pull-Down",
+            name="One-arm Lat Pull-down",
             force=Force.PULL,
             mechanic=Mechanic.ISOLATION,
             equipment=Equipment.MACHINE,
@@ -1590,7 +1590,7 @@ The press around is a compound exercise that targets the shoulders while engagin
 The pull-up is a compound bodyweight exercise that primarily targets the lats while also engaging the biceps and rear deltoids, enhancing upper body strength and muscle definition.""",
         ),
         Exercise(
-            name="Push-Down",
+            name="Push-down",
             force=Force.PUSH,
             mechanic=Mechanic.ISOLATION,
             equipment=Equipment.MACHINE,
@@ -1638,7 +1638,7 @@ The reverse machine fly isolates the rear deltoids and upper back muscles, enhan
 The Rowing Concept 2 is a full-body compound exercise that engages multiple muscle groups, primarily targeting the back and legs, providing cardiovascular and strength training benefits.""",
         ),
         Exercise(
-            name="Running on Treadmill",
+            name="Running On Treadmill",
             force=Force.ENDURANCE,
             mechanic=Mechanic.AEROBIC,
             equipment=Equipment.MACHINE,
@@ -1668,7 +1668,7 @@ The Russian twist is an isolation exercise that targets the core and obliques, e
 The seated cable row is a compound exercise that targets the lats and mid-back, while also engaging the biceps for a full upper-body workout.""",
         ),
         Exercise(
-            name="Seated Dumbbell One-Arm Triceps Extension",
+            name="Seated Dumbbell One-arm Triceps Extension",
             force=Force.PUSH,
             mechanic=Mechanic.ISOLATION,
             equipment=Equipment.DUMBBELL,
@@ -1698,7 +1698,7 @@ The seated machine bench press focuses on the chest muscles while providing stab
 The side plank is an isometric exercise that strengthens the obliques and core, while also engaging the shoulders and promoting balance and stability.""",
         ),
         Exercise(
-            name="Single-Arm Cable Pushdown",
+            name="Single-arm Cable Pushdown",
             force=Force.PUSH,
             mechanic=Mechanic.ISOLATION,
             equipment=Equipment.MACHINE,
@@ -1707,7 +1707,7 @@ The side plank is an isometric exercise that strengthens the obliques and core, 
 This isolation exercise targets the triceps by allowing one arm to work independently, helping to build muscle symmetry and strength.""",
         ),
         Exercise(
-            name="Single-Arm Cable Row",
+            name="Single-arm Cable Row",
             force=Force.PULL,
             mechanic=Mechanic.COMPOUND,
             equipment=Equipment.MACHINE,
@@ -1717,7 +1717,7 @@ This isolation exercise targets the triceps by allowing one arm to work independ
 The single-arm cable row isolates each side of the back and lats, promoting muscular balance and unilateral strength development.""",
         ),
         Exercise(
-            name="Single-Arm Dumbbell Row on Bench",
+            name="Single-arm Dumbbell Row On Bench",
             force=Force.PULL,
             mechanic=Mechanic.COMPOUND,
             equipment=Equipment.DUMBBELL,
@@ -1727,7 +1727,7 @@ The single-arm cable row isolates each side of the back and lats, promoting musc
 This exercise focuses on the lats and upper back while also engaging the biceps and rear deltoids, making it ideal for developing back strength with isolated control.""",
         ),
         Exercise(
-            name="Single-Arm Dumbbell Triceps Extension",
+            name="Single-arm Dumbbell Triceps Extension",
             force=Force.PUSH,
             mechanic=Mechanic.ISOLATION,
             equipment=Equipment.DUMBBELL,
@@ -1736,7 +1736,7 @@ This exercise focuses on the lats and upper back while also engaging the biceps 
 This unilateral exercise isolates the triceps to promote muscle balance and strength in each arm individually.""",
         ),
         Exercise(
-            name="Single-Arm Kettlebell Clean and Jerk",
+            name="Single-arm Kettlebell Clean and Jerk",
             force=Force.PUSH,
             mechanic=Mechanic.COMPOUND,
             equipment=Equipment.KETTLEBELL,
@@ -1746,7 +1746,7 @@ This unilateral exercise isolates the triceps to promote muscle balance and stre
 The single-arm kettlebell clean and jerk is a dynamic, full-body exercise that strengthens the shoulders and engages the core and glutes for explosive power.""",
         ),
         Exercise(
-            name="Single-Arm Machine Lat Pulldown",
+            name="Single-arm Machine Lat Pulldown",
             force=Force.PULL,
             mechanic=Mechanic.ISOLATION,
             equipment=Equipment.MACHINE,
@@ -1756,7 +1756,7 @@ The single-arm kettlebell clean and jerk is a dynamic, full-body exercise that s
 This variation of the lat pulldown targets one lat at a time, ensuring balanced development of the upper back and biceps.""",
         ),
         Exercise(
-            name="Single-Arm Machine Row",
+            name="Single-arm Machine Row",
             force=Force.PULL,
             mechanic=Mechanic.COMPOUND,
             equipment=Equipment.MACHINE,
@@ -1766,7 +1766,7 @@ This variation of the lat pulldown targets one lat at a time, ensuring balanced 
 The single-arm machine row targets the lats and mid-back while allowing each side to work independently, helping to correct muscle imbalances.""",
         ),
         Exercise(
-            name="Single-Leg Curl in Machine",
+            name="Single-leg Curl in Machine",
             force=Force.PULL,
             mechanic=Mechanic.ISOLATION,
             equipment=Equipment.MACHINE,
@@ -1775,7 +1775,7 @@ The single-arm machine row targets the lats and mid-back while allowing each sid
 This exercise isolates the hamstrings, working one leg at a time to build muscle symmetry and strength.""",
         ),
         Exercise(
-            name="Single-Leg Machine Calf Press",
+            name="Single-leg Machine Calf Press",
             force=Force.PUSH,
             mechanic=Mechanic.ISOLATION,
             equipment=Equipment.MACHINE,
@@ -1784,7 +1784,7 @@ This exercise isolates the hamstrings, working one leg at a time to build muscle
 The single-leg machine calf press targets the calf muscles, promoting unilateral strength and balance in the lower legs.""",
         ),
         Exercise(
-            name="Single-Leg Press",
+            name="Single-leg Press",
             force=Force.PUSH,
             mechanic=Mechanic.COMPOUND,
             equipment=Equipment.MACHINE,
@@ -1842,7 +1842,7 @@ The Smith Machine shrug isolates the traps, helping to build strength and muscle
 This exercise engages the core and obliques, providing rotational strength and stability through a controlled cable movement.""",
         ),
         Exercise(
-            name="Standing Dumbbell One-Arm Triceps Extension",
+            name="Standing Dumbbell One-arm Triceps Extension",
             force=Force.PUSH,
             mechanic=Mechanic.ISOLATION,
             equipment=Equipment.DUMBBELL,
@@ -1851,7 +1851,7 @@ This exercise engages the core and obliques, providing rotational strength and s
 This unilateral exercise isolates the triceps, helping to build strength and muscle symmetry between the arms.""",
         ),
         Exercise(
-            name="Standing Dumbbell One-Leg Calf Raise",
+            name="Standing Dumbbell One-leg Calf Raise",
             force=Force.PUSH,
             mechanic=Mechanic.ISOLATION,
             equipment=Equipment.DUMBBELL,
@@ -1860,7 +1860,7 @@ This unilateral exercise isolates the triceps, helping to build strength and mus
 The standing one-leg calf raise focuses on the calves, promoting balance and strength in the lower legs with added dumbbell resistance.""",
         ),
         Exercise(
-            name="Standing High Cable One-Arm Triceps Extension",
+            name="Standing High Cable One-arm Triceps Extension",
             force=Force.PUSH,
             mechanic=Mechanic.ISOLATION,
             equipment=Equipment.MACHINE,
@@ -1878,7 +1878,7 @@ This exercise isolates the triceps, allowing for a full range of motion and cont
 The standing low cable triceps extension provides targeted triceps training with the use of a low pulley cable for controlled resistance.""",
         ),
         Exercise(
-            name="Straight-Leg Barbell Deadlift",
+            name="Straight-leg Barbell Deadlift",
             force=Force.PULL,
             mechanic=Mechanic.COMPOUND,
             equipment=Equipment.BARBELL,
@@ -1889,14 +1889,14 @@ The standing low cable triceps extension provides targeted triceps training with
 The straight-leg deadlift variation places more emphasis on the hamstrings and lower back, while still engaging the glutes.""",
         ),
         Exercise(
-            name="T-Bar Row",
+            name="T-bar Row",
             force=Force.PULL,
             mechanic=Mechanic.COMPOUND,
             equipment=Equipment.BARBELL,
             prime_muscles=[Muscle.LATS],
             secondary_muscles=[Muscle.MIDDLE_BACK, Muscle.BICEPS],
             description="""
-The T-Bar row is a compound movement that strengthens the lats, middle back, and biceps, providing a complete upper-body workout.""",
+The T-bar row is a compound movement that strengthens the lats, middle back, and biceps, providing a complete upper-body workout.""",
         ),
         Exercise(
             name="Tibialis Raise",
@@ -2000,7 +2000,7 @@ This variation of the crunch incorporates additional weight to increase resistan
 The weighted pullup increases the difficulty of the traditional pullup by adding resistance, further targeting the lats, biceps, and forearms.""",
         ),
         Exercise(
-            name="Wide-Grip Machine Lat Pulldown",
+            name="Wide-grip Machine Lat Pulldown",
             force=Force.PULL,
             mechanic=Mechanic.COMPOUND,
             equipment=Equipment.MACHINE,
@@ -2010,7 +2010,7 @@ The weighted pullup increases the difficulty of the traditional pullup by adding
 This wide-grip variation of the lat pulldown targets the lats, with an increased focus on the upper back and rear deltoids.""",
         ),
         Exercise(
-            name="Wrist Curl (Roller)",
+            name="Wrist Curl (roller)",
             force=Force.PULL,
             mechanic=Mechanic.ISOLATION,
             equipment=Equipment.OTHER,
