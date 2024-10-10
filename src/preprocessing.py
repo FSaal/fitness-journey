@@ -561,19 +561,20 @@ class BodyWeightDataProcessor:
     def _load_myfitnesspal_data(self) -> pd.DataFrame:
         """Load and preprocess MyFitnessPal data."""
         df = pd.read_csv(self.data_paths.weight_myfitnesspal, delimiter=";")
-        df.index = pd.to_datetime(df["Date"] + " 09:00:00")
-        return df.drop("Date", axis=1)
+        df = df.rename(columns={"Weight": "Weight [kg]"})
+        df["Date"] = pd.to_datetime(df["Date"] + " 09:00:00")
+        return df.set_index("Date")
 
     def _load_eufy_data(self) -> pd.DataFrame:
         """Load and preprocess Eufy data."""
         df = pd.read_csv(self.data_paths.weight_eufy)
-        return df.rename(columns={"WEIGHT (kg)": "Weight"})
+        df = df.rename(columns={"WEIGHT (kg)": "Weight [kg]"})
+        df["Time"] = pd.to_datetime(df["Time"])
+        return df.set_index("Time")
 
     @staticmethod
     def _combine_and_process_data(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
         """Combine and process data from both sources."""
         df_combined = pd.concat([df1, df2])
-        df_combined["Time"] = pd.to_datetime(df_combined["Time"])
-        df_combined = df_combined.set_index("Time")
         df_combined = df_combined.sort_index()
-        return df_combined.rename(columns={"Weight": "Weight [kg]"})
+        return df_combined
