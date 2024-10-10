@@ -17,6 +17,8 @@ from exercise_compendium import (
 
 
 class DataPaths(NamedTuple):
+    """Paths to data files."""
+
     gym_progression: Path
     gym_gymbook: Path
     weight_myfitnesspal: Path
@@ -98,7 +100,7 @@ class DataLoader:
                 fixed_line = (
                     line[:SET_COMMENT_COLUMN_INDEX]
                     + [self._fix_comment_part(line[SET_COMMENT_COLUMN_INDEX:-2])]
-                    + line[-2:]
+                    + line[-3:]
                 )
             else:
                 fixed_line = line
@@ -149,6 +151,7 @@ class DataCleaner:
                 "Muskelgruppen (Sekundäre)",
                 "Satz / Aufwärmsatz / Abkühlungssatz",
                 "Ausgelassen",
+                "Bereich",
             ],
         )
         # Time is workout start time and the same for all sets of the day, Set Duration is only used for cardio exercises
@@ -186,16 +189,18 @@ class DataCleaner:
 
         Returns a cleaned DataFrame ready for analysis.
         """
+        df = df.set_index("Time")
+        df = df.sort_index()
         df = self._fix_dtypes(df)
         df = self._rename_columns(df)
-        df = df.sort_values("Time").reset_index(drop=True)
-        df = self._clean_up_data(df)
-        df = df.set_index("Time")
+        df = self._adjust_workout_gaps(df)
         return df
 
     @staticmethod
     def _fix_dtypes(df: pd.DataFrame) -> pd.DataFrame:
         """Convert 'Weight' to float and 'Repetitions' to int, handling missing values."""
+        df["Workout Name"] = df["Workout Name"].astype("category")
+        df["Exercise Name"] = df["Exercise Name"].astype("category")
         df["Weight"] = df["Weight"].fillna(0).astype(float)
         df["Repetitions"] = df["Repetitions"].astype(int)
         return df
@@ -207,26 +212,49 @@ class DataCleaner:
         return df.rename(columns=column_mapping)
 
     @staticmethod
-    def _clean_up_data(df: pd.DataFrame) -> pd.DataFrame:
-        """Remove and/or edit implausible data"""
-        # Limit gym session duration - Workout session of more than 3 hours must be a mistake
-        SESSION_TIME_LIMIT_S = 3 * 60 * 60  # 3 hours in seconds
+    def _adjust_workout_gaps(
+        df: pd.DataFrame,
+        gap_range=(pd.Timedelta(hours=1), pd.Timedelta(hours=12)),
+        adjustment_time=pd.Timedelta(minutes=5),
+    ):
+        """Adjust workout gaps within a specified time range and recalculate session durations."""
+        adjusted_indices = []
+        adjusted_dates = set()
 
-        # Remove outlier sets (forgot to log a set)
-        df_too_long = df[df["Session Duration [s]"] > SESSION_TIME_LIMIT_S]
-        outlier = df_too_long[df_too_long["Time"].diff() > pd.Timedelta(hours=1)]
-        if not outlier.empty:
-            df = df.drop(outlier.index[0] - 1)
+        # Group by date
+        for date, group in df.groupby(df.index.date):
+            # Calculate time differences between sets of the same workout (day)
+            time_diffs = group.index.to_series().diff()
+            set_time_gaps_in_range = (time_diffs > gap_range[0]) & (time_diffs < gap_range[1])
 
-        # Recalculate session duration for long sessions
-        df_too_long = df[df["Session Duration [s]"] > SESSION_TIME_LIMIT_S]
-        df.loc[df["Session Duration [s]"] > SESSION_TIME_LIMIT_S, "Session Duration [s]"] = (
-            df_too_long.groupby(df.index.date, observed=True)["Time"].transform(lambda x: x.max() - x.min()).dt.seconds
-        )
+            if set_time_gaps_in_range.any():
+                cumulative_adjustment = pd.Timedelta(0)
+                group_new_index = group.index.to_list()
 
-        # Handle missing comments for proper hover text in graphs
-        df["Set Comment"] = df["Set Comment"].fillna("None")
-        return df
+                for i in range(1, len(group)):
+                    if set_time_gaps_in_range.iloc[i]:
+                        desired_time = group_new_index[i - 1] + adjustment_time
+                        adjustment = group.index[i] - desired_time
+                        cumulative_adjustment += adjustment
+
+                        for j in range(i, len(group_new_index)):
+                            group_new_index[j] -= cumulative_adjustment
+
+                adjusted_indices.extend(group_new_index)
+                adjusted_dates.add(date)
+            else:
+                adjusted_indices.extend(group.index)
+
+        df_adjusted = df.copy()
+        df_adjusted.index = pd.DatetimeIndex(adjusted_indices)
+
+        # Recalculate session duration only for adjusted dates
+        for date in adjusted_dates:
+            mask = df_adjusted.index.date == date
+            duration = (df_adjusted.index[mask].max() - df_adjusted.index[mask].min()).total_seconds()
+            df_adjusted.loc[mask, "Session Duration [s]"] = duration
+
+        return df_adjusted
 
 
 class DataHarmonizer:
@@ -440,7 +468,7 @@ class DataEnricher:
     ) -> pd.DataFrame:
         """Add a new column to the DataFrame with exercise category information."""
         if column_name is None:
-            column_name = f"{category_type.__name__} Category"
+            column_name = f"{category_type.__name__}"
 
         exercise_to_category = {}
         for category in list(category_type):
@@ -470,7 +498,7 @@ class DataEnricher:
         }
 
         df["Weekday"] = df.index.weekday.map(weekday_map).astype("category")
-        df["Volume"] = df["Weight"].astype(float) * df["Repetitions"]
+        df["Volume"] = df["Weight [kg]"].astype(float) * df["Repetitions"]
         return df
 
 
@@ -546,5 +574,6 @@ class BodyWeightDataProcessor:
         """Combine and process data from both sources."""
         df_combined = pd.concat([df1, df2])
         df_combined["Time"] = pd.to_datetime(df_combined["Time"])
-        df_combined = df_combined.sort_values("Time").reset_index(drop=True)
+        df_combined = df_combined.set_index("Time")
+        df_combined = df_combined.sort_index()
         return df_combined.rename(columns={"Weight": "Weight [kg]"})
