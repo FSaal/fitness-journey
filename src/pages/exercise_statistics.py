@@ -1,3 +1,5 @@
+from typing import Optional
+
 import dash_bootstrap_components as dbc
 import numpy as np
 import pandas as pd
@@ -6,6 +8,7 @@ import plotly.io as pio
 import vizro.models as vm
 import vizro.plotly.express as px
 from dash import Input, Output, State, callback, html
+from vizro.figures import kpi_card, kpi_card_reference
 from vizro.models.types import capture
 
 from exercise_compendium import (
@@ -20,6 +23,8 @@ from exercise_compendium import (
 )
 
 exercises = create_exercise_library()
+default_exercise = "Barbell Squat"
+default_period = "monthly"
 
 pio.templates.default = "plotly_dark"
 weekday_map = {
@@ -37,136 +42,31 @@ vm.Page.add_type("controls", vm.Dropdown)
 vm.Page.add_type("controls", vm.RadioItems)
 
 
-def create_stats_cards(n_sets, n_repetitions, n_weight, n_rest):
-    # Format weight
-    if isinstance(n_weight, (int, float)) and n_weight > 1000:
-        weight_display = f"{round(n_weight / 1000, 1)} ton"
-    else:
-        weight_display = f"{n_weight} kg"
-
-    stats_cards = dbc.Row(
-        [
-            dbc.Col(
-                [
-                    dbc.Card(
-                        [
-                            dbc.CardBody(
-                                [
-                                    html.H4("Lifetime Statistics", className="text-center mb-4"),
-                                    dbc.Row(
-                                        [
-                                            # Sets Card
-                                            dbc.Col(
-                                                [
-                                                    dbc.Card(
-                                                        [
-                                                            dbc.CardBody(
-                                                                [
-                                                                    html.I(className="fas fa-layer-group mb-2"),
-                                                                    html.H6(
-                                                                        "Total Sets",
-                                                                        className="card-subtitle text-muted",
-                                                                    ),
-                                                                    html.H3(f"{n_sets}", className="mt-2"),
-                                                                ],
-                                                                className="text-center",
-                                                            )
-                                                        ],
-                                                        className="h-100",
-                                                    )
-                                                ],
-                                                width=6,
-                                                lg=3,
-                                                className="mb-3",
-                                            ),
-                                            # Repetitions Card
-                                            dbc.Col(
-                                                [
-                                                    dbc.Card(
-                                                        [
-                                                            dbc.CardBody(
-                                                                [
-                                                                    html.I(className="fas fa-redo mb-2"),
-                                                                    html.H6(
-                                                                        "Total Repetitions",
-                                                                        className="card-subtitle text-muted",
-                                                                    ),
-                                                                    html.H3(f"{n_repetitions}", className="mt-2"),
-                                                                ],
-                                                                className="text-center",
-                                                            )
-                                                        ],
-                                                        className="h-100",
-                                                    )
-                                                ],
-                                                width=6,
-                                                lg=3,
-                                                className="mb-3",
-                                            ),
-                                            # Weight Card
-                                            dbc.Col(
-                                                [
-                                                    dbc.Card(
-                                                        [
-                                                            dbc.CardBody(
-                                                                [
-                                                                    html.I(className="fas fa-dumbbell mb-2"),
-                                                                    html.H6(
-                                                                        "Total Weight",
-                                                                        className="card-subtitle text-muted",
-                                                                    ),
-                                                                    html.H3(weight_display, className="mt-2"),
-                                                                ],
-                                                                className="text-center",
-                                                            )
-                                                        ],
-                                                        className="h-100",
-                                                    )
-                                                ],
-                                                width=6,
-                                                lg=3,
-                                                className="mb-3",
-                                            ),
-                                            # Rest Time Card
-                                            dbc.Col(
-                                                [
-                                                    dbc.Card(
-                                                        [
-                                                            dbc.CardBody(
-                                                                [
-                                                                    html.I(className="fas fa-clock mb-2"),
-                                                                    html.H6(
-                                                                        "Total Rest Time",
-                                                                        className="card-subtitle text-muted",
-                                                                    ),
-                                                                    html.H3(f"{n_rest}", className="mt-2"),
-                                                                ],
-                                                                className="text-center",
-                                                            )
-                                                        ],
-                                                        className="h-100",
-                                                    )
-                                                ],
-                                                width=6,
-                                                lg=3,
-                                                className="mb-3",
-                                            ),
-                                        ]
-                                    ),
-                                ]
-                            )
-                        ],
-                        className="shadow",
-                    )
-                ]
-            )
-        ]
-    )
-
-    return stats_cards
-
-
 def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
+    @callback(
+        Output("exercise-info-card", "children"),
+        Input("dropdown-exercise", "value"),
+    )
+    def update_exercise_info_card(exercise_name: str) -> str:
+        """Generate exercise information card with statistics."""
+        exercise = exercises.get_exercise(exercise_name)
+        similar_exercises = exercises.get_similar_exercises(exercise)
+        df_by_exercise = df_fitness[df_fitness["Exercise Name"] == exercise.name]
+        n_repetitions = df_by_exercise["Repetitions"].sum()
+        n_sets = df_by_exercise["Set Order"].count()
+        total_weight = df_by_exercise["Weight [kg]"].sum()
+        total_weight = f"{total_weight:.1f} kg" if total_weight < 1000 else f"{total_weight / 1000:.2f} t"
+
+        exercise_info_and_stats = f"""## {exercise.name}
+                {exercise.description}         
+* * *           
+### All Time Statistics
+- **Sets:** {n_sets:,}
+- **Repetitions:** {n_repetitions:,}
+- **Total Weight:** {total_weight}"""
+
+        return exercise_info_and_stats
+
     @callback(
         Output("graph-exercise-progression", "figure", allow_duplicate=True),
         Input("switch-show-variations", "value"),
@@ -184,80 +84,32 @@ def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
         return fig
 
     @callback(
-        Output("exercise-info-card", "children"),
-        Output("card-exercise-info-weight", "children"),
-        Output("card-exercise-info-all-time", "children"),
-        Input("dropdown-exercise", "value"),
-    )
-    def update_exercise_info_card(exercise_name: str):
-        exercise = exercises.get_exercise(exercise_name)
-        similar_exercises = exercises.get_similar_exercises(exercise)
-
-        text = f"""### {exercise.name}
-        {exercise.description}
-        """
-
-        df_by_exercise = df_fitness[df_fitness["Exercise Name"] == exercise.name]
-        max_weight = round(df_by_exercise["Weight [kg]"].max() / 2.5) * 2.5
-        mean_weight = round(df_by_exercise["Weight [kg]"].mean() / 2.5) * 2.5
-        mean_sets = round(df_by_exercise["Repetitions"].mean())
-        # mean_rest = df_by_exercise["Set Time"].mean()
-        mean_rest = "test"
-        card_stats = f"""
-        ### Weight Statistics
-
-        **Max. Weight:** **{max_weight} kg**
-        Mean. Weight: {mean_weight} kg
-        Mean. Sets: {mean_sets}
-        Mean. Rest Time: {mean_rest}
-        """
-
-        # all time stats
-        n_repetitions = df_by_exercise["Repetitions"].sum()
-        n_sets = df_by_exercise["Set Order"].count()
-        n_weight = round(df_by_exercise["Weight [kg]"].sum() / 2.5) * 2.5
-        # if n_weight is more than 1000 kg, display ton instead of kg
-        if n_weight > 1000:
-            n_weight = round(n_weight / 1000)
-            n_weight = f"{n_weight} ton"
-        else:
-            n_weight = f"{n_weight} kg"
-        # n_rest = df_by_exercise["Set Time"].sum()
-        n_rest = "test"
-        time_stats = f"""
-        ### Total Statistics
-        
-        {n_sets} sets with a total of {n_repetitions} repetitions were performed.
-        This amounts to **{n_weight} kg** moved weight in total.
-        """
-
-        return text, card_stats, time_stats
-
-    @callback(
         Output("graph-exercise-volume", "figure", allow_duplicate=True),
         Output("graph-exercise-1rm", "figure", allow_duplicate=True),
         Input("dropdown-period", "value"),
-        State("dropdown-exercise", "value"),
+        Input("dropdown-exercise", "value"),
         prevent_initial_call=True,
     )
     def update_graph_exercise_1rm(period: str, exercise: str):
-        fig_volume = plot_volume(df_fitness, period, exercise=exercise)
-        fig_one_rm = plot_one_rm(df_fitness, period, exercise=exercise)
+        fig_volume = plot_volume(df_fitness, exercise, period)
+        fig_one_rm = plot_one_rm(df_fitness, exercise, period)
         return fig_volume, fig_one_rm
 
     @capture("graph")
-    def plot_weight_bubbles(data_frame: pd.DataFrame, similar_exercises: list[str] = None, **kwargs) -> go.Figure:
-        """Plot of weight over time. Different colors for different repetitions.
-        Bubble size represents volume.
-        """
-        # data_frame = data_frame[data_frame["Exercise Name"] == exercise]
-        if similar_exercises is not None:
-            data_frame = data_frame[data_frame["Exercise Name"].isin(similar_exercises)]
+    def plot_weight_bubbles(
+        data_frame: pd.DataFrame, similar_exercises: Optional[list[str]] = None, **kwargs
+    ) -> go.Figure:
+        """Plot of weight over time. Different colors for different repetitions. Bubble size represents volume."""
+        # Number of repetitions, up to which the color scale will generate new colors
+        MAX_REPETITIONS = 12
+
+        if similar_exercises:
+            data_frame = data_frame.loc[data_frame["Exercise Name"].isin(similar_exercises)]
+
         # Limit max color scale value to not dilute the colors
-        if data_frame["Repetitions"].max() > 12:
-            color_scale_range = [data_frame["Repetitions"].min(), 12]
-        else:
-            color_scale_range = [data_frame["Repetitions"].min(), data_frame["Repetitions"].max()]
+        min_reps = data_frame["Repetitions"].min()
+        max_reps = min(data_frame["Repetitions"].max(), MAX_REPETITIONS)
+        color_scale_range = [min_reps, max_reps]
 
         # Plot - Weight over time
         figure_weight = px.scatter(
@@ -271,120 +123,147 @@ def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
             symbol="Exercise Name",
             **kwargs,
         )
+        figure_weight.update_layout(xaxis_title=None)
 
-        # Hoverup text
-        figure_weight.update(
-            data=[
-                {
-                    "customdata": data_frame["Set Comment"],
-                    "hovertemplate": "Time: %{x}<br>Weight: %{y} kg<br>Repetitions: %{marker.color}<br>Volume: %{marker.size} kg<br>Set Comment: %{customdata}",
-                }
-            ]
+        hover_data = {
+            "customdata": data_frame["Set Comment"],
+            "hovertemplate": (
+                "Time: %{x}<br>"
+                "Weight: %{y} kg<br>"
+                "Repetitions: %{marker.color}<br>"
+                "Volume: %{marker.size} kg<br>"
+                "Set Comment: %{customdata}"
+                "<extra></extra>"
+            ),
+        }
+        figure_weight.update(data=[hover_data])
+
+        # Show legend if more than one exercise is displayed
+        legend_config = (
+            {"showlegend": False}
+            if len(data_frame["Exercise Name"].unique()) == 1
+            else {"legend": dict(orientation="h")}
         )
-
-        # Move legend to bottom left corner and conditionally display
-        if len(data_frame["Exercise Name"].unique()) > 2:
-            figure_weight.update_layout(legend=dict(orientation="h"))
-        else:
-            figure_weight.update_layout(showlegend=False)
+        figure_weight.update_layout(**legend_config)
 
         return figure_weight
 
     @capture("graph")
     def plot_one_rm(
-        data_frame: pd.DataFrame, period: str = "monthly", exercise: str = None, max_reps: int = 5
-    ) -> go.Figure:
-        """Plot estimated 1RM over time."""
+        data_frame: pd.DataFrame, exercise: str = None, period: str = default_period, initial_window: int = 90
+    ):
+        """Plot 1RM trend for a specific exercise over time."""
         if exercise is not None:
             data_frame = data_frame[data_frame["Exercise Name"] == exercise]
 
-        # 1RM calculation is only reliable up to about 5 reps - separate intto two dataFrames to distinguish
-        df_reliable = data_frame[data_frame["Repetitions"] <= max_reps].copy()
-        # 1RM for more than 20 reps is not reliable at all - ignore
-        df_unreliable = data_frame[(data_frame["Repetitions"] > max_reps) & (data_frame["Repetitions"] < 20)].copy()
+        # Filter data for the specific exercise and remove sets with more than 20 reps (unreliable for 1RM calculation)
+        exercise_data = data_frame[(data_frame["Exercise Name"] == exercise) & (data_frame["Repetitions"] <= 20)].copy()
 
-        df_reliable["1RM"] = df_reliable["Weight [kg]"] / (1.0278 - (0.0278) * df_reliable["Repetitions"])
-        df_unreliable["1RM"] = df_unreliable["Weight [kg]"] / (1.0278 - (0.0278) * df_unreliable["Repetitions"])
+        # Set up period grouper
+        if period == "weekly":
+            exercise_data["period"] = exercise_data.index.to_period("W").start_time
+        elif period == "monthly":
+            exercise_data["period"] = exercise_data.index.to_period("M").start_time
+        elif period == "yearly":
+            initial_window = 500
+            exercise_data["period"] = exercise_data.index.to_period("Y").start_time
 
-        if period == "daily":
-            pass
-        # If a period is provided, group sets by that period
-        else:
-            if period == "monthly":
-                date_format = "%Y-%m"
-            elif period == "yearly":
-                date_format = "%Y"
-
-            df_reliable = (
-                df_reliable.groupby(df_reliable.index.strftime(date_format))
-                .agg(
-                    {
-                        "1RM": "max",
-                        "Weight [kg]": "first",  # Keep original weight for hover data
-                        "Repetitions": "first",  # Keep reps for hover data
-                    }
-                )
-                .reset_index()
-            )
-            df_unreliable = (
-                df_unreliable.groupby(df_unreliable.index.strftime(date_format))
-                .agg({"1RM": "max", "Weight [kg]": "first", "Repetitions": "first"})
-                .reset_index()
-            )
-
-        figure_1rm = px.scatter(df_reliable, x=df_reliable.index, y="1RM", color="Repetitions", template="plotly_dark")
-        figure_1rm.update(
-            data=[
-                {
-                    "customdata": df_reliable["Weight [kg]"],
-                    "hovertemplate": "Time: %{x}<br>Weight: %{y:.2f} kg<br>Attempt: %{customdata} kg x %{marker.color}",
-                }
+        # Function to get max 1RM for each period and rep range
+        def get_max_1rm(data, max_reps):
+            return data[data["Repetitions"] <= max_reps].loc[
+                data[data["Repetitions"] <= max_reps].groupby("period")["1RM"].idxmax()
             ]
+
+        # Get max 1RM for ≤5 reps and >5 reps
+        reliable_data = get_max_1rm(exercise_data, 7)
+        less_reliable_data = get_max_1rm(exercise_data[exercise_data["Repetitions"] > 7], 20)
+
+        # Convert period to datetime for consistent comparison
+        reliable_data["period"] = pd.to_datetime(reliable_data["period"])
+        less_reliable_data["period"] = pd.to_datetime(less_reliable_data["period"])
+
+        # Create a mask for filtering less_reliable_data
+        mask = ~less_reliable_data["period"].isin(reliable_data["period"])
+        for period in less_reliable_data["period"]:
+            if period in reliable_data["period"].values:
+                reliable_1rm = reliable_data.loc[reliable_data["period"] == period, "1RM"].values[0]
+                less_reliable_1rm = less_reliable_data.loc[less_reliable_data["period"] == period, "1RM"].values[0]
+                mask |= (less_reliable_data["period"] == period) & (less_reliable_1rm > reliable_1rm)
+        # Apply the mask to filter less_reliable_data
+        less_reliable_data = less_reliable_data[mask]
+
+        # Initial calculations
+        peak_moving_avg = (
+            reliable_data.set_index("period")["1RM"].rolling(window=f"{initial_window}D", min_periods=1).max()
         )
-        figure_1rm.add_trace(
+
+        # Create the plot
+        fig = go.Figure()
+        # Add reliable data points (≤5 reps)
+        fig.add_trace(
             go.Scatter(
-                x=df_unreliable.index,
-                y=df_unreliable["1RM"],
-                mode="markers",
-                # Make markers diamonds
-                marker={"symbol": "diamond", "size": 5, "color": "gray"},
-                # Add hoverup data with info about repetitions and weight
-                hovertemplate="Time: %{x}<br>Weight: %{y:.2f} kg<br>Attempt: %{customdata[0]} kg x %{customdata[1]}",
-                customdata=list(zip(df_unreliable["Weight [kg]"], df_unreliable["Repetitions"])),
-                name="",
+                x=reliable_data["period"],
+                y=reliable_data["1RM"],
+                mode="lines+markers",
+                name="1RM (≤5 reps)",
+                hovertemplate="Date: %{x|%Y-%m-%d}<br>1RM: %{y:.2f} kg<br>Attempt: %{customdata[0]} kg x %{customdata[1]}<extra></extra>",
+                customdata=reliable_data[["Weight [kg]", "Repetitions"]],
             )
         )
-        # Do not show legend for the two traces
-        figure_1rm.update_layout(showlegend=False, yaxis_title="Weight [kg]")
-        return figure_1rm
+
+        # Add peak moving average
+        peak_trace = go.Scatter(
+            x=peak_moving_avg.index,
+            y=peak_moving_avg,
+            mode="lines",
+            name=f"{initial_window}-day Peak Moving Average",
+            line=dict(color="red", dash="dash"),
+            hovertemplate="Date: %{x|%Y-%m-%d}<br>Peak Avg 1RM: %{y:.2f} kg<extra></extra>",
+        )
+        fig.add_trace(peak_trace)
+
+        fig.update_layout(
+            yaxis_title="Estimated 1RM [kg]",
+            legend_title="Legend",
+            legend=dict(yanchor="top", y=0.1, xanchor="right", x=0.99),
+        )
+
+        return fig
 
     @capture("graph")
-    def plot_volume(data_frame: pd.DataFrame, period: str = "monthly", exercise=None, **kwargs) -> go.Figure:
-        """Plot training volume per day over time."""
+    def plot_volume(
+        data_frame: pd.DataFrame, exercise: str = None, period: str = default_period, **kwargs
+    ) -> go.Figure:
+        """Plot training volume per time frame (period) over time."""
         if exercise is not None:
             data_frame = data_frame[data_frame["Exercise Name"] == exercise]
 
-        if period == "daily":
-            grouped_by_time_frame = data_frame.groupby(data_frame.index.date, observed=True)
-        elif period == "weekly":
-            grouped_by_time_frame = data_frame.groupby(data_frame.index.strftime("%Y-%W"))
+        if period == "weekly":
+            grouped_by_time_frame = data_frame.groupby(data_frame.index.strftime("%Y-%W"), observed=True)
         elif period == "monthly":
-            grouped_by_time_frame = data_frame.groupby(data_frame.index.strftime("%Y-%m"))
+            grouped_by_time_frame = data_frame.groupby(data_frame.index.strftime("%Y-%m"), observed=True)
         elif period == "yearly":
-            grouped_by_time_frame = data_frame.groupby(data_frame.index.strftime("%Y"))
+            grouped_by_time_frame = data_frame.groupby(data_frame.index.strftime("%Y"), observed=True)
 
         volume = grouped_by_time_frame.apply(lambda x: (x["Repetitions"] * x["Weight [kg]"]).sum())
         n_sets = grouped_by_time_frame["Set Order"].count()
         n_reps = grouped_by_time_frame["Repetitions"].sum()
         avg_weight = grouped_by_time_frame["Weight [kg]"].median()
 
-        figure_volume = px.scatter(data_frame, x=volume.index, y=volume, template="plotly_dark", **kwargs)
-        figure_volume.update_layout(xaxis_title="Time", yaxis_title="Volume [kg]")
+        try:
+            plot_data = pd.DataFrame(
+                {"Volume": volume, "Sets": n_sets, "Repetitions": n_reps, "Average Weight": avg_weight}
+            )
+        except ValueError:
+            return go.Figure()
+
+        figure_volume = px.area(plot_data, x=plot_data.index, y="Volume", template="plotly_dark", **kwargs)
+        figure_volume.update_layout(xaxis_title=None, yaxis_title="Volume [kg]")
         figure_volume.update(
             data=[
                 {
-                    "customdata": np.stack((n_reps, avg_weight, n_sets), axis=1),
-                    "hovertemplate": "Time: %{x}<br>Volume: %{y} kg<br>Sets: %{customdata[2]}<br>Repetitions: %{customdata[0]}<br>Average weight: %{customdata[1]} kg",
+                    "customdata": np.stack((n_sets, n_reps, avg_weight), axis=1),
+                    "hovertemplate": "Time: %{x}<br>Volume: %{y} kg<br>Sets: %{customdata[0]}<br>Repetitions: %{customdata[1]}<br>Average weight: %{customdata[2]} kg",
                 }
             ]
         )
@@ -425,23 +304,79 @@ def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
         figure_time_heatmap.update_layout(coloraxis_colorbar={"title": "Sets"})
         return figure_time_heatmap
 
-    colorscales = px.colors.named_colorscales()
-    first_page = vm.Page(
+    # KPI card component
+    def calculate_exercise_volume_progression(df: pd.DataFrame, today, days: int = 30) -> pd.Series:
+        """Calculate volume progression for a given exercise over specified days."""
+        return pd.Series(
+            {
+                "reference": df[
+                    (df.index <= today - pd.Timedelta(days=days)) & (df.index > today - pd.Timedelta(days=days * 2))
+                ]["Volume"].sum(),
+                "value": df[df.index > today - pd.Timedelta(days=days)]["Volume"].sum(),
+            }
+        )
+
+    def apply_to_all_exercises(df: pd.DataFrame, days: int = 30) -> pd.DataFrame:
+        """Apply volume progression calculation to all exercises in the dataframe."""
+        today = df.index.max()
+        return (
+            df.groupby("Exercise Name")
+            .apply(lambda x: calculate_exercise_volume_progression(x, today, days))
+            .reset_index()
+            .rename(columns={"level_1": "metric"})
+        )
+
+    # Assuming df_fitness is your original DataFrame
+    volume_data = apply_to_all_exercises(df_fitness)
+
+    page = vm.Page(
         title="Exercise Statistics",
         layout=vm.Layout(
             grid=[
-                [0, 0, 0, 0, 1, 2],
-                [3, 3, 3, 3, 3, 3],
-                [3, 3, 3, 3, 3, 3],
-                [4, 4, 4, 5, 5, 5],
-                [4, 4, 4, 5, 5, 5],
+                [0, 0, 0, 1, 2, 3],  # Exercise info, 3 stat cards
+                [4, 4, 4, 4, 4, 4],  # Weight progression graph
+                [4, 4, 4, 4, 4, 4],
+                [4, 4, 4, 4, 4, 4],
+                [5, 5, 5, 5, 5, 5],  # Other plots in Tabs
+                [5, 5, 5, 5, 5, 5],
+                [5, 5, 5, 5, 5, 5],
             ],
-            row_min_height="170px",
+            row_min_height="155px",
         ),
         components=[
-            vm.Card(id="exercise-info-card", text="None"),
-            vm.Card(id="card-exercise-info-weight", text="None"),
-            vm.Card(id="card-exercise-info-all-time", text="None"),
+            vm.Card(id="exercise-info-card", text="Placeholder"),
+            vm.Figure(
+                figure=kpi_card(
+                    df_fitness,
+                    "Weight [kg]",
+                    value_format="{value} kg",
+                    agg_func="max",
+                    title="Personal Best",
+                    icon="fitness_center",
+                )
+            ),
+            vm.Figure(
+                figure=kpi_card(
+                    df_fitness,
+                    "Repetitions",
+                    value_format="{value:,.0f}",
+                    agg_func="mean",
+                    title="Mean Reps",
+                    icon="repeat",
+                )
+            ),
+            vm.Figure(
+                id="card-exercise-kpi",
+                figure=kpi_card_reference(
+                    data_frame=volume_data,
+                    value_column="value",
+                    reference_column="reference",
+                    value_format="{value:,.0f} kg",  # Format as integer with comma separators
+                    reference_format="{delta_relative:+.1%} vs. last 30 days ({reference:,.0f})",
+                    icon="show_chart",
+                    title="Volume",
+                ),
+            ),
             vm.Graph(
                 id="graph-exercise-progression",
                 figure=plot_weight_bubbles(df_fitness),
@@ -454,22 +389,11 @@ def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
             vm.Tabs(
                 tabs=[
                     vm.Container(
-                        title="Volume",
-                        components=[
-                            vm.Graph(
-                                id="graph-exercise-volume",
-                                figure=plot_volume(df_fitness),
-                                title="Training Volume over Time",
-                                header="What is the training volume over time?",
-                            ),
-                        ],
-                    ),
-                    vm.Container(
                         title="Strength",
                         components=[
                             vm.Graph(
                                 id="graph-exercise-1rm",
-                                figure=plot_one_rm(df_fitness),
+                                figure=plot_one_rm(df_fitness, default_exercise),
                                 title="Estimated One-Rep Max (1RM)",
                                 header="""
                                 What is the estimated 1RM for each set?
@@ -480,10 +404,17 @@ def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
                             ),
                         ],
                     ),
-                ]
-            ),
-            vm.Tabs(
-                tabs=[
+                    vm.Container(
+                        title="Volume",
+                        components=[
+                            vm.Graph(
+                                id="graph-exercise-volume",
+                                figure=plot_volume(df_fitness, default_exercise),
+                                title="Training Volume over Time",
+                                header="What is the training volume over time?",
+                            ),
+                        ],
+                    ),
                     vm.Container(
                         title="Favorite Training Day",
                         components=[
@@ -513,7 +444,7 @@ def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
             vm.Filter(
                 column="Exercise Name",
                 selector=vm.Dropdown(
-                    id="dropdown-exercise", value="Barbell Squat", multi=False, title="Select Exercise"
+                    id="dropdown-exercise", value=default_exercise, multi=False, title="Select Exercise"
                 ),
             ),
             vm.Filter(
@@ -534,11 +465,11 @@ def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
             ),
             vm.RadioItems(
                 id="dropdown-period",
-                options=["daily", "monthly", "yearly"],
-                value="daily",
+                options=["weekly", "monthly", "yearly"],
+                value=default_period,
                 title="Period (Volume & Strength)",
             ),
         ],
     )
 
-    return first_page
+    return page
