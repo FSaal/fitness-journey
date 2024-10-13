@@ -1,5 +1,9 @@
+import warnings
 from pathlib import Path
 from typing import Tuple
+
+# Only for now, to silence plotly pandas groupby warning
+warnings.filterwarnings("ignore", category=FutureWarning, module="plotly")
 
 import pandas as pd
 import plotly.io as pio
@@ -15,6 +19,7 @@ from preprocessing import BodyWeightDataProcessor, DataPaths, WorkoutDataPreproc
 
 # Set default plotly template
 pio.templates.default = "plotly_dark"
+Vizro(assets_folder="src/assets")
 
 
 def load_data() -> Tuple[pd.DataFrame, pd.DataFrame]:
