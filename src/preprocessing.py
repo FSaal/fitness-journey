@@ -191,6 +191,7 @@ class DataCleaner:
         """
         df = df.set_index("Time")
         df = df.sort_index()
+        df.index.name = "Time"
         df = self._fix_dtypes(df)
         df = self._rename_columns(df)
         df = self._adjust_workout_gaps(df)
@@ -222,7 +223,7 @@ class DataCleaner:
         adjusted_dates = set()
 
         # Group by date
-        for date, group in df.groupby(df.index.date):
+        for date, group in df.groupby(df.index.date, observed=True):
             # Calculate time differences between sets of the same workout (day)
             time_diffs = group.index.to_series().diff()
             set_time_gaps_in_range = (time_diffs > gap_range[0]) & (time_diffs < gap_range[1])
@@ -486,7 +487,7 @@ class DataEnricher:
 
     @staticmethod
     def _add_derived_columns(df: pd.DataFrame) -> pd.DataFrame:
-        """Add derived columns to the DataFrame: Weekday and Volume."""
+        """Add derived columns to the DataFrame: Weekday, Volume, and 1-RM."""
         weekday_map = {
             0: "Monday",
             1: "Tuesday",
@@ -497,8 +498,10 @@ class DataEnricher:
             6: "Sunday",
         }
 
-        df["Weekday"] = df.index.weekday.map(weekday_map).astype("category")
-        df["Volume"] = df["Weight [kg]"].astype(float) * df["Repetitions"]
+        df["Weekday"] = pd.Categorical(df.index.weekday.map(weekday_map), categories=weekday_map.values(), ordered=True)
+        df["Volume"] = df["Weight [kg]"] * df["Repetitions"]
+        # Calculate One-Rep Max using Brzycki formula
+        df["1RM"] = df["Weight [kg]"] / (1.0278 - (0.0278) * df["Repetitions"]).round(2)
         return df
 
 
@@ -577,4 +580,5 @@ class BodyWeightDataProcessor:
         """Combine and process data from both sources."""
         df_combined = pd.concat([df1, df2])
         df_combined = df_combined.sort_index()
+        df_combined.index.name = "Time"
         return df_combined
