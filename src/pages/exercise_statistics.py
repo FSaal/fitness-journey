@@ -1,6 +1,5 @@
 from typing import Optional
 
-import dash_bootstrap_components as dbc
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -11,16 +10,7 @@ from dash import Input, Output, State, callback, html
 from vizro.figures import kpi_card, kpi_card_reference
 from vizro.models.types import capture
 
-from exercise_compendium import (
-    Equipment,
-    Exercise,
-    ExerciseLibrary,
-    ExerciseSearchCriteria,
-    Force,
-    Mechanic,
-    Muscle,
-    create_exercise_library,
-)
+from exercise_compendium import create_exercise_library
 
 exercises = create_exercise_library()
 default_exercise = "Barbell Squat"
@@ -37,7 +27,7 @@ weekday_map = {
     6: "Sunday",
 }
 
-
+# Add components to the controls sidebar, to be able to use them there
 vm.Page.add_type("controls", vm.Dropdown)
 vm.Page.add_type("controls", vm.RadioItems)
 
@@ -99,10 +89,17 @@ def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
     def plot_weight_bubbles(
         data_frame: pd.DataFrame, similar_exercises: Optional[list[str]] = None, **kwargs
     ) -> go.Figure:
-        """Plot of weight over time. Different colors for different repetitions. Bubble size represents volume."""
+        """Plot weight per set as a bubble chart, with time as x-axis, weight as y-axis, repetitions as color and volume as size.
+
+        The method is affected by the following sidebar controls:
+        - exercise (Filter): The name of the exercise
+        - Filter by repetitions (Filter): Range slider for the number of repetitions
+        - Show Variations (Parameter): Boolean Switch, if true, also plot variations of the selected exercise
+        """
         # Number of repetitions, up to which the color scale will generate new colors
         MAX_REPETITIONS = 12
 
+        # Also show similar exercises if the switch is set (additional to the selected exercise)
         if similar_exercises:
             data_frame = data_frame.loc[data_frame["Exercise Name"].isin(similar_exercises)]
 
@@ -111,8 +108,7 @@ def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
         max_reps = min(data_frame["Repetitions"].max(), MAX_REPETITIONS)
         color_scale_range = [min_reps, max_reps]
 
-        # Plot - Weight over time
-        figure_weight = px.scatter(
+        fig = px.scatter(
             data_frame,
             x=data_frame.index,
             y="Weight [kg]",
@@ -123,20 +119,19 @@ def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
             symbol="Exercise Name",
             **kwargs,
         )
-        figure_weight.update_layout(xaxis_title=None)
+        fig.update_layout(xaxis_title=None)
 
         hover_data = {
             "customdata": data_frame["Set Comment"],
             "hovertemplate": (
-                "Time: %{x}<br>"
+                "Date: %{x}<br>"
                 "Weight: %{y} kg<br>"
                 "Repetitions: %{marker.color}<br>"
                 "Volume: %{marker.size} kg<br>"
                 "Set Comment: %{customdata}"
-                "<extra></extra>"
             ),
         }
-        figure_weight.update(data=[hover_data])
+        fig.update(data=[hover_data])
 
         # Show legend if more than one exercise is displayed
         legend_config = (
@@ -144,100 +139,96 @@ def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
             if len(data_frame["Exercise Name"].unique()) == 1
             else {"legend": dict(orientation="h")}
         )
-        figure_weight.update_layout(**legend_config)
-
-        return figure_weight
+        fig.update_layout(**legend_config)
+        return fig
 
     @capture("graph")
     def plot_one_rm(
-        data_frame: pd.DataFrame, exercise: str = None, period: str = default_period, initial_window: int = 90
+        data_frame: pd.DataFrame, exercise: str = None, period: str = default_period, rolling_avg_window_size: int = 90
     ):
-        """Plot 1RM trend for a specific exercise over time."""
-        if exercise is not None:
-            data_frame = data_frame[data_frame["Exercise Name"] == exercise]
+        """Plot 1RM trend as line chart, with time as x-axis and 1RM as y-axis.
+        Only the max 1RM for each period is shown.
 
-        # Filter data for the specific exercise and remove sets with more than 20 reps (unreliable for 1RM calculation)
-        exercise_data = data_frame[(data_frame["Exercise Name"] == exercise) & (data_frame["Repetitions"] <= 20)].copy()
+        The method is affected by the following sidebar controls:
+        - exercise (Filter): The name of the exercise
+        - period (Parameter): Time frame for grouping the data (weekly, monthly or yearly, default: monthly)
+        """
+        # Number of repetitions, up to which the 1RM formula will be applied
+        RELIABLE_REPETITIONS = 7
+        # Filter data for the specific exercise
+        if exercise is not None:
+            exercise_data = data_frame[data_frame["Exercise Name"] == exercise]
+
+        # Remove sets with too many repetitions (not reliable for the 1RM calculation)
+        exercise_data = exercise_data[exercise_data["Repetitions"] <= RELIABLE_REPETITIONS]
 
         # Set up period grouper
         if period == "weekly":
+            rolling_avg_window_size = 7 * 5
             exercise_data["period"] = exercise_data.index.to_period("W").start_time
         elif period == "monthly":
+            rolling_avg_window_size = 30 * 5
             exercise_data["period"] = exercise_data.index.to_period("M").start_time
         elif period == "yearly":
-            initial_window = 500
+            rolling_avg_window_size = 365
             exercise_data["period"] = exercise_data.index.to_period("Y").start_time
 
-        # Function to get max 1RM for each period and rep range
-        def get_max_1rm(data, max_reps):
-            return data[data["Repetitions"] <= max_reps].loc[
-                data[data["Repetitions"] <= max_reps].groupby("period")["1RM"].idxmax()
-            ]
+        # Reset index, to make sure to only get entry for each period, because it could be that two sets have the same timestamp
+        original_index = exercise_data.index
+        exercise_data = exercise_data.reset_index()
+        # Filter by period - only the max 1RM for each period is extracted
+        max_indices = exercise_data.groupby("period")["1RM"].idxmax().values
+        exercise_data = exercise_data.loc[max_indices]
+        exercise_data.index = original_index[exercise_data.index]
 
-        # Get max 1RM for ≤5 reps and >5 reps
-        reliable_data = get_max_1rm(exercise_data, 7)
-        less_reliable_data = get_max_1rm(exercise_data[exercise_data["Repetitions"] > 7], 20)
+        # Smooth 1RM by using a peak moving average
+        peak_moving_avg = exercise_data["1RM"].rolling(window=f"{rolling_avg_window_size}D", min_periods=1).max()
 
-        # Convert period to datetime for consistent comparison
-        reliable_data["period"] = pd.to_datetime(reliable_data["period"])
-        less_reliable_data["period"] = pd.to_datetime(less_reliable_data["period"])
-
-        # Create a mask for filtering less_reliable_data
-        mask = ~less_reliable_data["period"].isin(reliable_data["period"])
-        for period in less_reliable_data["period"]:
-            if period in reliable_data["period"].values:
-                reliable_1rm = reliable_data.loc[reliable_data["period"] == period, "1RM"].values[0]
-                less_reliable_1rm = less_reliable_data.loc[less_reliable_data["period"] == period, "1RM"].values[0]
-                mask |= (less_reliable_data["period"] == period) & (less_reliable_1rm > reliable_1rm)
-        # Apply the mask to filter less_reliable_data
-        less_reliable_data = less_reliable_data[mask]
-
-        # Initial calculations
-        peak_moving_avg = (
-            reliable_data.set_index("period")["1RM"].rolling(window=f"{initial_window}D", min_periods=1).max()
-        )
-
-        # Create the plot
         fig = go.Figure()
-        # Add reliable data points (≤5 reps)
+        # Add estimated 1RM data points
         fig.add_trace(
             go.Scatter(
-                x=reliable_data["period"],
-                y=reliable_data["1RM"],
-                mode="lines+markers",
+                # x=exercise_data["period"],
+                x=exercise_data.index,
+                y=exercise_data["1RM"],
+                mode="markers",
                 name="1RM (≤5 reps)",
-                hovertemplate="Date: %{x|%Y-%m-%d}<br>1RM: %{y:.2f} kg<br>Attempt: %{customdata[0]} kg x %{customdata[1]}<extra></extra>",
-                customdata=reliable_data[["Weight [kg]", "Repetitions"]],
+                line=dict(color="#636EFB"),
+                hovertemplate="Date: %{x|%Y-%m-%d}<br>1RM: %{y:.2f} kg<br>Attempt: %{customdata[0]} kg x %{customdata[1]}",
+                customdata=exercise_data[["Weight [kg]", "Repetitions"]],
             )
         )
-
         # Add peak moving average
-        peak_trace = go.Scatter(
-            x=peak_moving_avg.index,
-            y=peak_moving_avg,
-            mode="lines",
-            name=f"{initial_window}-day Peak Moving Average",
-            line=dict(color="red", dash="dash"),
-            hovertemplate="Date: %{x|%Y-%m-%d}<br>Peak Avg 1RM: %{y:.2f} kg<extra></extra>",
+        fig.add_trace(
+            go.Scatter(
+                x=peak_moving_avg.index,
+                y=peak_moving_avg,
+                mode="lines",
+                name=f"{rolling_avg_window_size}-day Peak Moving Average",
+                line=dict(color="#6544CA", dash="dashdot", width=3),
+            )
         )
-        fig.add_trace(peak_trace)
-
         fig.update_layout(
             yaxis_title="Estimated 1RM [kg]",
             legend_title="Legend",
             legend=dict(yanchor="top", y=0.1, xanchor="right", x=0.99),
         )
-
+        fig.update_layout(
+            xaxis=dict(showgrid=True, gridcolor="rgba(255, 255, 255, 0.01)"),  # Subtle vertical grid lines
+            yaxis=dict(showgrid=True, gridcolor="rgba(255, 255, 255, 0.05)"),  # Subtle horizontal grid lines
+        )
         return fig
 
     @capture("graph")
     def plot_volume(
         data_frame: pd.DataFrame, exercise: str = None, period: str = default_period, **kwargs
     ) -> go.Figure:
-        """Plot training volume per time frame (period) over time."""
-        if exercise is not None:
-            data_frame = data_frame[data_frame["Exercise Name"] == exercise]
+        """Plot training volume per time frame (period) as area chart, with time as x-axis and volume as y-axis.
 
+        The method is affected by the following sidebar controls:
+        - exercise (Filter): The name of the exercise
+        - period (Parameter): Time frame for grouping the data (weekly, monthly or yearly, default: monthly)
+        """
         if period == "weekly":
             grouped_by_time_frame = data_frame.groupby(data_frame.index.strftime("%Y-%W"), observed=True)
         elif period == "monthly":
@@ -245,11 +236,13 @@ def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
         elif period == "yearly":
             grouped_by_time_frame = data_frame.groupby(data_frame.index.strftime("%Y"), observed=True)
 
+        # Volume = Repetitions * Weight
         volume = grouped_by_time_frame.apply(lambda x: (x["Repetitions"] * x["Weight [kg]"]).sum())
         n_sets = grouped_by_time_frame["Set Order"].count()
         n_reps = grouped_by_time_frame["Repetitions"].sum()
         avg_weight = grouped_by_time_frame["Weight [kg]"].median()
 
+        # TODO: Find root cause of this error, for now catch it
         try:
             plot_data = pd.DataFrame(
                 {"Volume": volume, "Sets": n_sets, "Repetitions": n_reps, "Average Weight": avg_weight}
@@ -257,52 +250,62 @@ def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
         except ValueError:
             return go.Figure()
 
-        figure_volume = px.area(plot_data, x=plot_data.index, y="Volume", template="plotly_dark", **kwargs)
-        figure_volume.update_layout(xaxis_title=None, yaxis_title="Volume [kg]")
-        figure_volume.update(
-            data=[
-                {
-                    "customdata": np.stack((n_sets, n_reps, avg_weight), axis=1),
-                    "hovertemplate": "Time: %{x}<br>Volume: %{y} kg<br>Sets: %{customdata[0]}<br>Repetitions: %{customdata[1]}<br>Average weight: %{customdata[2]} kg",
-                }
-            ]
-        )
-        return figure_volume
+        fig = px.area(plot_data, x=plot_data.index, y="Volume", template="plotly_dark", **kwargs)
+        fig.update_layout(xaxis_title=None, yaxis_title="Volume [kg]")
+        hover_data = {
+            "customdata": np.stack((n_sets, n_reps, avg_weight), axis=1),
+            "hovertemplate": (
+                "Date: %{x}<br>"
+                "Volume: %{y} kg<br>"
+                "Sets: %{customdata[0]}<br>"
+                "Repetitions: %{customdata[1]}<br>"
+                "Average weight: %{customdata[2]} kg"
+            ),
+        }
+        fig.update(data=[hover_data])
+        return fig
 
     @capture("graph")
     def plot_frequent_day(data_frame: pd.DataFrame) -> go.Figure:
-        """Plot favorite training day.
-        Days where at least one set of the exercise was performed count as training day.
+        """Plot favorite training day using a histogram, with weekday as x-axis and number of training days as y-axis.
+        Days where at least one set of the exercise was performed counts as training day.
+
+        The method is affected by the following sidebar controls:
+        - exercise (Filter): The name of the exercise
         """
         grouped_by_date = data_frame.groupby(data_frame.index.date, observed=True)
         # Sum training days per day
-        weekdays = pd.Categorical(
+        weekday_counts = pd.Categorical(
             grouped_by_date["Weekday"].first(), categories=list(weekday_map.values())
         ).sort_values()
 
-        figure_weekday = px.histogram(weekdays, template="plotly_dark")
-        figure_weekday.update_layout(xaxis_title="Weekday", yaxis_title="Days", showlegend=False)
-        figure_weekday.update(data=[{"hovertemplate": "Weekday: %{x}<br>Days: %{y}"}])
-        return figure_weekday
+        fig = px.histogram(weekday_counts, template="plotly_dark")
+        fig.update_layout(xaxis_title=None, yaxis_title="Number of training days", showlegend=False)
+        fig.update(data=[{"hovertemplate": "Weekday: %{x}<br>Number of days trained: %{y}"}])
+        return fig
 
     @capture("graph")
     def plot_frequent_time(data_frame: pd.DataFrame) -> go.Figure:
-        """Plot favorite training time.
-        Each performed set in a 1 hour block increases the counter.
+        """Plot favorite training time using a heatmap, with weekday as x-axis and hour as y-axis and number of sets as z-axis.
+        Each performed set inside a 1 hour block increases the counter.
+
+        The method is affected by the following sidebar controls:
+        - exercise (Filter): The name of the exercise
         """
-        figure_time_heatmap = px.density_heatmap(
+        # TODO: Fix hour cell size issue for low set exercises
+        fig = px.density_heatmap(
             data_frame,
             x="Weekday",
             y=data_frame.index.hour,
             category_orders={"Weekday": list(weekday_map.values())},
             template="plotly_dark",
         )
-        figure_time_heatmap.update_layout(yaxis_title="Hour")
+        fig.update_layout(xaxis_title=None, yaxis_title="Hour of Day", coloraxis_colorbar={"title": "Sets"})
         # Reverse the y-axis order
-        figure_time_heatmap.update_yaxes(autorange="reversed")
-        figure_time_heatmap.update(data=[{"hovertemplate": "Weekday: %{x}<br>Hour: %{y}<br>Performed sets: %{z}"}])
-        figure_time_heatmap.update_layout(coloraxis_colorbar={"title": "Sets"})
-        return figure_time_heatmap
+        fig.update_yaxes(autorange="reversed", tickmode="linear", tick0=0, dtick=1, tickformat="%H:00")
+        # fig.update_yaxes(autorange="reversed")
+        fig.update(data=[{"hovertemplate": "Weekday: %{x}<br>Hour: %{y}:00 - %{y}:59<br>Number of Sets: %{z}"}])
+        return fig
 
     # KPI card component
     def calculate_exercise_volume_progression(df: pd.DataFrame, today, days: int = 30) -> pd.Series:
@@ -421,8 +424,9 @@ def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
                             vm.Graph(
                                 id="graph-exercise-favorite-day",
                                 figure=plot_frequent_day(df_fitness),
-                                title="Training Days",
-                                header="On which day was this exercise performed most often?",
+                                title="Frequency of Exercise Performance by Weekday",
+                                header="""Frequency of exercise performance across weekdays.
+                                Each day with at least one set performed counts as a training day.""",
                             ),
                         ],
                     ),
@@ -433,7 +437,8 @@ def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
                                 id="graph-exercise-favorite-time",
                                 figure=plot_frequent_time(df_fitness),
                                 title="Training Hours",
-                                header="On which time of the day was this exercise performed most often (by sets)?",
+                                header="""On which time of the day was this exercise performed most often (by sets)?
+                                If at least one set was performed, the time of the day is shown.""",
                             )
                         ],
                     ),
@@ -449,6 +454,7 @@ def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
             ),
             vm.Filter(
                 column="Repetitions",
+                targets=["graph-exercise-progression"],
                 selector=vm.RangeSlider(
                     id="range-slider-repetitions",
                     title="Filter by repetitions",
