@@ -1,27 +1,21 @@
 [project]
 name = "fitness-journey"
 version = "0.1.0"
-description = "Add your description here"
+description = "A comprehensive dashboard for analyzing and visualizing personal fitness data using Plotly Dash."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "dash>=2.18.1",
-    "dash-loading-spinners>=1.0.3",
-    "numpy>=2.1.1",
-    "pandas>=2.2.2",
-    "dash-ag-grid>=31.2.0",
-    "statsmodels>=0.14.3",
-    "dash-iconify>=0.1.2",
-    "ruff>=0.6.5",
-    "wordcloud>=1.9.3",
-    "pandasai>=2.0.24",
-    "plotly>=5.24.1",
-    "markdown>=3.7",
-    "dash-bootstrap-components>=1.6.0",
+    "numpy>=2.1.2",
+    "pandas>=2.2.3",
+    "scipy>=1.14.1",
+    "statsmodels>=0.14.4",
     "vizro>=0.1.24",
-    "vizro-ai>=0.0.1",
+    "wordcloud>=1.9.3",
 ]
 
-# add ruff line length to 120
+# Add ruff line length to 120
 [tool.ruff]
 line-length = 120
+
+[tool.uv]
+dev-dependencies = ["ipykernel>=6.29.5", "ruff>=0.6.9"]
