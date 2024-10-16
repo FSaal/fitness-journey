@@ -2,9 +2,6 @@ import warnings
 from pathlib import Path
 from typing import Tuple
 
-# Only for now, to silence plotly pandas groupby warning
-warnings.filterwarnings("ignore", category=FutureWarning, module="plotly")
-
 import pandas as pd
 import plotly.io as pio
 import vizro.models as vm
@@ -16,6 +13,9 @@ from pages.general_statistics import get_general_statistics_page
 from pages.playground import get_playground_page
 from pages.powerlifting_statistics import get_powerlifting_statistic_page
 from preprocessing import BodyWeightDataProcessor, DataPaths, WorkoutDataPreprocessor
+
+# Only for now, to silence plotly pandas groupby warning
+warnings.filterwarnings("ignore", category=FutureWarning, module="plotly")
 
 # Set default plotly template
 pio.templates.default = "plotly_dark"
@@ -68,7 +68,7 @@ def create_dashboard(df_fitness: pd.DataFrame, df_bodyweight: pd.DataFrame) -> v
     }
 
     navigation_structure = {
-        "Exercise specific statistics": ["Exercise Statistics", "PowerLifting Statistics"],
+        "Exercise specific statistics": ["Exercise Statistics", "Powerlifting Statistics"],
         "General statistics": ["Exercise Distribution", "Playground", "General Statistics"],
     }
 
