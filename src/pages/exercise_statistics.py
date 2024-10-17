@@ -3,10 +3,9 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-import plotly.io as pio
 import vizro.models as vm
 import vizro.plotly.express as px
-from dash import Input, Output, State, callback, html
+from dash import Input, Output, State, callback
 from vizro.figures import kpi_card, kpi_card_reference
 from vizro.models.types import capture
 
@@ -16,7 +15,7 @@ exercises = create_exercise_library()
 default_exercise = "Barbell Squat"
 default_period = "monthly"
 
-pio.templates.default = "plotly_dark"
+
 weekday_map = {
     0: "Monday",
     1: "Tuesday",
@@ -47,13 +46,11 @@ def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
         total_weight = df_by_exercise["Weight [kg]"].sum()
         total_weight = f"{total_weight:.1f} kg" if total_weight < 1000 else f"{total_weight / 1000:.2f} t"
 
-        exercise_info_and_stats = f"""## {exercise.name}
+        # exercise_info_and_stats = f"""
+        exercise_info_and_stats = f"""### {exercise.name}
                 {exercise.description}         
 * * *           
-### All Time Statistics
-- **Sets:** {n_sets:,}
-- **Repetitions:** {n_repetitions:,}
-- **Total Weight:** {total_weight}"""
+Lifetime Statistics: **Sets:** {n_sets:,} | **Repetitions:** {n_repetitions:,} | **Total Weight:** {total_weight}"""
 
         return exercise_info_and_stats
 
@@ -119,7 +116,8 @@ def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
             symbol="Exercise Name",
             **kwargs,
         )
-        fig.update_layout(xaxis_title=None)
+        fig.update_layout(xaxis_title=None, yaxis_title="Weight")
+        fig.update_yaxes(ticksuffix=" kg")
 
         hover_data = {
             "customdata": data_frame["Set Comment"],
@@ -209,10 +207,11 @@ def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
             )
         )
         fig.update_layout(
-            yaxis_title="Estimated 1RM [kg]",
+            yaxis_title="Estimated 1RM",
             legend_title="Legend",
             legend=dict(yanchor="top", y=0.1, xanchor="right", x=0.99),
         )
+        fig.update_yaxes(ticksuffix=" kg")
         fig.update_layout(
             xaxis=dict(showgrid=True, gridcolor="rgba(255, 255, 255, 0.01)"),  # Subtle vertical grid lines
             yaxis=dict(showgrid=True, gridcolor="rgba(255, 255, 255, 0.05)"),  # Subtle horizontal grid lines
@@ -323,7 +322,7 @@ def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
         """Apply volume progression calculation to all exercises in the dataframe."""
         today = df.index.max()
         return (
-            df.groupby("Exercise Name")
+            df.groupby("Exercise Name", observed=True)
             .apply(lambda x: calculate_exercise_volume_progression(x, today, days))
             .reset_index()
             .rename(columns={"level_1": "metric"})
@@ -344,7 +343,7 @@ def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
                 [5, 5, 5, 5, 5, 5],
                 [5, 5, 5, 5, 5, 5],
             ],
-            row_min_height="155px",
+            row_min_height="170px",
         ),
         components=[
             vm.Card(id="exercise-info-card", text="Placeholder"),
@@ -375,7 +374,7 @@ def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
                     value_column="value",
                     reference_column="reference",
                     value_format="{value:,.0f} kg",  # Format as integer with comma separators
-                    reference_format="{delta_relative:+.1%} vs. last 30 days ({reference:,.0f})",
+                    reference_format="{delta_relative:+.1%} vs. previous 30 days ({reference:,.0f} kg)",
                     icon="show_chart",
                     title="Volume",
                 ),
@@ -399,10 +398,9 @@ def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
                                 figure=plot_one_rm(df_fitness, default_exercise),
                                 title="Estimated One-Rep Max (1RM)",
                                 header="""
-                                What is the estimated 1RM for each set?
-                                When a period filter is applied, the max 1RM of the period is shown.
-                                Note, that the formula used is only accurate up to 5 reps.
-                                Estimates based on more than 5 reps are colored gray.
+                                This graph displays the estimated One-Rep Max (1RM) over time, showing both individual data points and a peak moving average.
+                                Sets with more than 7 reps are ignored for the calculation of the 1RM.
+                                The time period, on which the data is grouped, can be set in the sidebar.
                                 """,
                             ),
                         ],
@@ -414,7 +412,10 @@ def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
                                 id="graph-exercise-volume",
                                 figure=plot_volume(df_fitness, default_exercise),
                                 title="Training Volume over Time",
-                                header="What is the training volume over time?",
+                                header="""
+                                This graph illustrates the Training Volume over time, represented by an area chart showing the fluctuations in volume.
+                                The time period, on which the data is grouped, can be set in the sidebar.
+                                """,
                             ),
                         ],
                     ),
@@ -473,7 +474,7 @@ def get_exercise_statistic_page(df_fitness: pd.DataFrame) -> vm.Page:
                 id="dropdown-period",
                 options=["weekly", "monthly", "yearly"],
                 value=default_period,
-                title="Period (Volume & Strength)",
+                title="Time Period (affects Strength & Volume)",
             ),
         ],
     )
