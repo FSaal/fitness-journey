@@ -56,7 +56,7 @@ def add_reliable_data_trace(fig: go.Figure, data: pd.DataFrame, exercise: str, i
             customdata=data[["Repetitions", "1RM", "Bodyweight [kg]", "Relative Strength"]],
             hovertemplate=(
                 "Date: %{x}<br>"
-                "Weight: %{y} kg<br>"
+                "Weight: %{y}<br>"
                 "Repetitions: %{customdata[0]}<br>"
                 "1RM: %{customdata[1]:.2f} kg<br>"
                 "Bodyweight: %{customdata[2]:.1f} kg<br>"
@@ -96,7 +96,7 @@ def add_unreliable_data_trace(fig: go.Figure, data: pd.DataFrame, index: int, me
             customdata=data[["Repetitions", "Bodyweight [kg]", "High Rep Relative Volume"]],
             hovertemplate=(
                 "Date: %{x}<br>"
-                "Weight: %{y} kg<br>"
+                "Weight: %{y}<br>"
                 "Repetitions: %{customdata[0]}<br>"
                 "Bodyweight: %{customdata[1]:.1f} kg<br>"
                 "High Rep Relative Volume: %{customdata[2]:.2f}<extra></extra>"
@@ -258,6 +258,7 @@ def get_powerlifting_statistic_page(df_fitness: pd.DataFrame, df_bodyweight: pd.
         return get_powerlifting_plot(df_merged, first_date, last_date, metric)
 
     vm.Page.add_type("controls", vm.RadioItems)
+    vm.Page.add_type("controls", vm.Card)
     page = vm.Page(
         title="Powerlifting Statistics",
         components=[
@@ -265,12 +266,22 @@ def get_powerlifting_statistic_page(df_fitness: pd.DataFrame, df_bodyweight: pd.
                 id="graph-powerlifting-exercises",
                 figure=get_powerlifting_plot(df_merged, first_date, last_date),
                 title="Powerlifting Exercises Weight Progression",
-                header="Each point in the graph represents a performed set. Only sets with less than 8 reps are colored. The smoothed trend line was calculated using a peak moving average filter.",
+                # header="Each point in the graph represents a performed set. Only sets with less than 8 reps are colored. The smoothed trend line was calculated using a peak moving average filter.",
+                header="""
+                Visualizes weight progression over time for key powerlifting exercises.
+                Each point represents a set, with color and marker type distinguishing between the exercises.
+                Trend lines use peak moving average for clearer progression tracking.
+                Filter by repetitions and adjust y-axis to show Weight, estimated 1RM, or Relative Strength in the sidebar.""",
             ),
             vm.Graph(
                 figure=get_bodyweight_figure(df_bodyweight, df_bodyweight_smoothed, first_date, last_date),
                 title="Bodyweight",
-                header="Each point in the graph represents a body weight measurement. The smoothed trend line was calculated using a LOWESS smoothing algorithm.",
+                header="""
+                Tracks bodyweight changes over time, with each point representing a measurement.
+                The smoothed trend line, calculated using a LOWESS algorithm, helps visualize overall weight progression.
+                Weight class lines provide context for powerlifting classifications.
+                Complements the strength progression chart above for a comprehensive view of physical development.""",
+                # header="Each point in the graph represents a body weight measurement. The smoothed trend line was calculated using a LOWESS smoothing algorithm.",
             ),
         ],
         controls=[
@@ -289,7 +300,7 @@ def get_powerlifting_statistic_page(df_fitness: pd.DataFrame, df_bodyweight: pd.
                 id="switch-powerlifting-y-axis",
                 options=["Weight [kg]", "1RM", "Relative Strength"],
                 value="Weight [kg]",
-                title="Sort y-axis",
+                title="Y-axis Metric",
             ),
         ],
     )
