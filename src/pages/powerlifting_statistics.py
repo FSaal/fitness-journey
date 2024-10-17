@@ -114,9 +114,11 @@ def update_layout(fig: go.Figure, first_date: pd.Timestamp, last_date: pd.Timest
         showlegend=True,
     )
     if metric == "Weight [kg]":
-        fig.update_layout(yaxis_title="Weight [kg]")
+        fig.update_layout(yaxis_title="Weight")
+        fig.update_yaxes(ticksuffix=" kg")
     elif metric == "1RM":
-        fig.update_layout(yaxis_title="1RM [kg]")
+        fig.update_layout(yaxis_title="1RM")
+        fig.update_yaxes(ticksuffix=" kg")
         # limit y axis to 0 to 250 - necessary due to outliers
         fig.update_yaxes(range=[0, 250])
     elif metric == "Relative Strength":
@@ -174,8 +176,9 @@ def add_weight_class_lines(fig: go.Figure) -> None:
 def update_bodyweight_layout(fig: go.Figure, first_date: pd.Timestamp, last_date: pd.Timestamp) -> None:
     """Update the layout of the bodyweight figure."""
     fig.update_layout(
-        xaxis_title=None, yaxis_title="Weight [kg]", xaxis_range=[first_date, last_date], template="plotly_dark"
+        xaxis_title=None, yaxis_title="Weight", xaxis_range=[first_date, last_date], template="plotly_dark"
     )
+    fig.update_yaxes(ticksuffix=" kg")
 
 
 def interpolate_data(data_frame: pd.DataFrame, frac: float = 0.15) -> pd.DataFrame:
