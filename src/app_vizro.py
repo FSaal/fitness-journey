@@ -1,4 +1,6 @@
+import re
 import warnings
+from datetime import datetime
 from pathlib import Path
 from typing import Tuple
 
@@ -19,6 +21,43 @@ warnings.filterwarnings("ignore", category=FutureWarning, module="plotly")
 Vizro(assets_folder="src/assets")
 
 
+def find_newest_progression_file(directory: Path) -> Path:
+    """Find the newest progression app file export in the directory matching the pattern 'YYYY-MM-DD HH/MM/SS.csv'."""
+    pattern = r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\.csv"
+
+    newest_file = None
+    newest_date = datetime.min
+
+    for file in directory.glob("*.csv"):
+        match = re.match(pattern, file.name)
+        if match:
+            date_str = match.group(1)
+            file_date = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+            if file_date > newest_date:
+                newest_date = file_date
+                newest_file = file
+
+    return newest_file
+
+
+def find_newest_weight_file(directory: Path) -> Path:
+    """Find the newest weight file export in the directory matching the pattern 'weight_Felix_XXXXXXXXXX.csv'."""
+    pattern = r"weight_Felix_(\d+)\.csv"
+
+    newest_file = None
+    highest_number = 0
+
+    for file in directory.glob("weight_Felix_*.csv"):
+        match = re.match(pattern, file.name)
+        if match:
+            number = int(match.group(1))
+            if number > highest_number:
+                highest_number = number
+                newest_file = file
+
+    return newest_file
+
+
 def load_data() -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Load and preprocess fitness and body weight data.
 
@@ -29,13 +68,13 @@ def load_data() -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     data_paths = DataPaths(
         # Training data of Android fitness app: Progression - Currently used for logging
-        gym_progression=Path("data/2024-09-25 08:19:34.csv"),
+        gym_progression=find_newest_progression_file(Path("data")),
         # Training data of iOS fitness app: Gymbook
         gym_gymbook=Path("data/GymBook-Logs-2023-04-08.csv"),
         # Body weight measurements from myFitnessPal app
         weight_myfitnesspal=Path("data/weight.csv"),
         # Body weight measurements from Eufy scale - Currently used for logging
-        weight_eufy=Path("data/weight_Felix_1727247358.csv"),
+        weight_eufy=find_newest_weight_file(Path("data")),
     )
     # Validate that all data files exist
     data_paths.validate()
@@ -60,13 +99,13 @@ def create_dashboard(df_fitness: pd.DataFrame, df_bodyweight: pd.DataFrame) -> v
         "exercise_statistics": get_exercise_statistic_page(df_fitness),
         "powerlifting_statistics": get_powerlifting_statistic_page(df_fitness, df_bodyweight),
         "exercise_distribution": get_exercise_distribution_page(df_fitness),
-        "playground": get_playground_page(df_fitness),
         "general_statistics": get_general_statistics_page(df_fitness),
+        "playground": get_playground_page(df_fitness),
     }
 
     navigation_structure = {
         "Exercise specific statistics": ["Exercise Statistics", "Powerlifting Statistics"],
-        "General statistics": ["Exercise Distribution", "Playground", "General Statistics"],
+        "General statistics": ["Exercise Distribution", "General Statistics", "Playground"],
     }
 
     return vm.Dashboard(pages=list(pages.values()), navigation=vm.Navigation(pages=navigation_structure))
