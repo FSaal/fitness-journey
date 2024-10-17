@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Tuple
 
 import pandas as pd
-import plotly.io as pio
 import vizro.models as vm
 from vizro import Vizro
 
@@ -17,8 +16,6 @@ from preprocessing import BodyWeightDataProcessor, DataPaths, WorkoutDataPreproc
 # Only for now, to silence plotly pandas groupby warning
 warnings.filterwarnings("ignore", category=FutureWarning, module="plotly")
 
-# Set default plotly template
-pio.templates.default = "plotly_dark"
 Vizro(assets_folder="src/assets")
 
 
