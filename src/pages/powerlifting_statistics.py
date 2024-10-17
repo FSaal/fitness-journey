@@ -185,8 +185,6 @@ def interpolate_data(data_frame: pd.DataFrame, frac: float = 0.15) -> pd.DataFra
     """Interpolate bodyweight data using LOWESS smoothing."""
     data_frame = data_frame.copy()
     data_frame.index = pd.to_datetime(data_frame.index.date)
-    # Remove duplicates (use first measurement), such that there is only one entry per day (necessary for interpolation)
-    data_frame = data_frame.groupby(data_frame.index).first()
 
     # Converting datetime to int results in nanoseconds --> scale to get seconds
     time_numeric = data_frame.index.astype(int) / 1e9

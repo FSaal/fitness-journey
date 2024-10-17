@@ -39,6 +39,7 @@ class DataLoader:
         """Load and preprocess data from Progression and GymBook CSV files."""
         fixed_progression_csv = self.fix_progression_csv(progression_path)
         df_progression = pd.read_csv(fixed_progression_csv, delimiter=",", decimal=".")
+        fixed_progression_csv.unlink()
         df_gymbook = pd.read_csv(gymbook_path, delimiter=";", decimal=",")
         return df_progression, df_gymbook
 
@@ -573,6 +574,8 @@ class BodyWeightDataProcessor:
         df = pd.read_csv(self.data_paths.weight_eufy)
         df = df.rename(columns={"WEIGHT (kg)": "Weight [kg]"})
         df["Time"] = pd.to_datetime(df["Time"])
+        # If there are multiple measurements on the same day, only keep the lowest weight measurement
+        df = df.loc[df.groupby(df["Time"].dt.date)["Weight [kg]"].idxmin()]
         return df.set_index("Time")
 
     @staticmethod
