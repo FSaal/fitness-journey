@@ -67,7 +67,7 @@ Lifetime Statistics: **Sets:** {n_sets:,} | **Repetitions:** {n_repetitions:,} |
             similar_exercise_names = [exercise.name for exercise in similar_exercises]
         else:
             similar_exercise_names = [exercise_name]
-        fig = plot_weight_bubbles(df_fitness, similar_exercises=similar_exercise_names)
+        fig = plot_weight_progression(df_fitness, similar_exercises=similar_exercise_names)
         return fig
 
     @callback(
@@ -83,7 +83,7 @@ Lifetime Statistics: **Sets:** {n_sets:,} | **Repetitions:** {n_repetitions:,} |
         return fig_volume, fig_one_rm
 
     @capture("graph")
-    def plot_weight_bubbles(
+    def plot_weight_progression(
         data_frame: pd.DataFrame, similar_exercises: Optional[list[str]] = None, **kwargs
     ) -> go.Figure:
         """Plot weight per set as a bubble chart, with time as x-axis, weight as y-axis, repetitions as color and volume as size.
@@ -123,7 +123,7 @@ Lifetime Statistics: **Sets:** {n_sets:,} | **Repetitions:** {n_repetitions:,} |
             "customdata": data_frame["Set Comment"],
             "hovertemplate": (
                 "Date: %{x}<br>"
-                "Weight: %{y} kg<br>"
+                "Weight: %{y}<br>"
                 "Repetitions: %{marker.color}<br>"
                 "Volume: %{marker.size} kg<br>"
                 "Set Comment: %{customdata}"
@@ -154,10 +154,11 @@ Lifetime Statistics: **Sets:** {n_sets:,} | **Repetitions:** {n_repetitions:,} |
         # Number of repetitions, up to which the 1RM formula will be applied
         RELIABLE_REPETITIONS = 7
         # Filter data for the specific exercise
-        if exercise is not None:
-            exercise_data = data_frame[data_frame["Exercise Name"] == exercise]
+        if data_frame["Exercise Name"].nunique() > 1:
+            data_frame = data_frame[data_frame["Exercise Name"] == exercise]
 
         # Remove sets with too many repetitions (not reliable for the 1RM calculation)
+        exercise_data = data_frame.copy()
         exercise_data = exercise_data[exercise_data["Repetitions"] <= RELIABLE_REPETITIONS]
 
         # Set up period grouper
@@ -192,7 +193,7 @@ Lifetime Statistics: **Sets:** {n_sets:,} | **Repetitions:** {n_repetitions:,} |
                 mode="markers",
                 name="1RM (≤5 reps)",
                 line=dict(color="#636EFB"),
-                hovertemplate="Date: %{x|%Y-%m-%d}<br>1RM: %{y:.2f} kg<br>Attempt: %{customdata[0]} kg x %{customdata[1]}",
+                hovertemplate="Date: %{x}<br>1RM: %{y:.2f} kg<br>Attempt: %{customdata[0]} kg x %{customdata[1]}",
                 customdata=exercise_data[["Weight [kg]", "Repetitions"]],
             )
         )
@@ -228,6 +229,9 @@ Lifetime Statistics: **Sets:** {n_sets:,} | **Repetitions:** {n_repetitions:,} |
         - exercise (Filter): The name of the exercise
         - period (Parameter): Time frame for grouping the data (weekly, monthly or yearly, default: monthly)
         """
+        if data_frame["Exercise Name"].nunique() > 1:
+            data_frame = data_frame[data_frame["Exercise Name"] == exercise]
+
         if period == "weekly":
             grouped_by_time_frame = data_frame.groupby(data_frame.index.strftime("%Y-%W"), observed=True)
         elif period == "monthly":
@@ -381,12 +385,12 @@ Lifetime Statistics: **Sets:** {n_sets:,} | **Repetitions:** {n_repetitions:,} |
             ),
             vm.Graph(
                 id="graph-exercise-progression",
-                figure=plot_weight_bubbles(df_fitness),
+                figure=plot_weight_progression(df_fitness),
                 title="Weight progression",
                 header="""
-                Each bubble in the graph represents a training set.
-                The color of the bubble indicates the number of sets performed.
-                The size of the bubble indicates the volume (weight times repetitions) of the set.""",
+                Visualizes weight progression over time for the selected exercise.
+                Bubbles represent training sets, with color showing repetitions and size reflecting volume.
+                Filter by rep range and view similar exercises in the sidebar for a comprehensive strength development overview.""",
             ),
             vm.Tabs(
                 tabs=[
@@ -398,10 +402,9 @@ Lifetime Statistics: **Sets:** {n_sets:,} | **Repetitions:** {n_repetitions:,} |
                                 figure=plot_one_rm(df_fitness, default_exercise),
                                 title="Estimated One-Rep Max (1RM)",
                                 header="""
-                                This graph displays the estimated One-Rep Max (1RM) over time, showing both individual data points and a peak moving average.
-                                Sets with more than 7 reps are ignored for the calculation of the 1RM.
-                                The time period, on which the data is grouped, can be set in the sidebar.
-                                """,
+                                Tracks estimated One-Rep Max (1RM) over time for the chosen exercise, showing individual data points and a peak moving average trend.
+                                Excludes sets with more than 7 reps for accuracy.
+                                Adjust data grouping period in the sidebar to customize strength progression views.""",
                             ),
                         ],
                     ),
@@ -413,9 +416,9 @@ Lifetime Statistics: **Sets:** {n_sets:,} | **Repetitions:** {n_repetitions:,} |
                                 figure=plot_volume(df_fitness, default_exercise),
                                 title="Training Volume over Time",
                                 header="""
-                                This graph illustrates the Training Volume over time, represented by an area chart showing the fluctuations in volume.
-                                The time period, on which the data is grouped, can be set in the sidebar.
-                                """,
+                                Illustrates training volume fluctuations over time for the selected exercise, providing insights into workout intensity and consistency.
+                                Volume calculated as weight multiplied by repetitions.
+                                Adjust time period grouping in the sidebar to analyze volume trends across different timescales.""",
                             ),
                         ],
                     ),
@@ -426,8 +429,9 @@ Lifetime Statistics: **Sets:** {n_sets:,} | **Repetitions:** {n_repetitions:,} |
                                 id="graph-exercise-favorite-day",
                                 figure=plot_frequent_day(df_fitness),
                                 title="Frequency of Exercise Performance by Weekday",
-                                header="""Frequency of exercise performance across weekdays.
-                                Each day with at least one set performed counts as a training day.""",
+                                header="""
+                                Highlights weekly training patterns for the selected exercise by showing performance frequency across weekdays.
+                                Each day with at least one set counts as a training day.""",
                             ),
                         ],
                     ),
@@ -438,8 +442,9 @@ Lifetime Statistics: **Sets:** {n_sets:,} | **Repetitions:** {n_repetitions:,} |
                                 id="graph-exercise-favorite-time",
                                 figure=plot_frequent_time(df_fitness),
                                 title="Training Hours",
-                                header="""On which time of the day was this exercise performed most often (by sets)?
-                                If at least one set was performed, the time of the day is shown.""",
+                                header="""
+                                Reveals preferred training times for the selected exercise through workout hour distribution across the week.
+                                Color intensity represents sets performed at each hour.""",
                             )
                         ],
                     ),
