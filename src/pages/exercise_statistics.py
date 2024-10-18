@@ -5,10 +5,10 @@ import pandas as pd
 import plotly.graph_objects as go
 import vizro.models as vm
 import vizro.plotly.express as px
-from dash import Input, Output, State, callback
-from vizro.figures import kpi_card, kpi_card_reference
+from dash import Input, Output, callback
 from vizro.models.types import capture
 
+from components.modified_components import kpi_card, kpi_card_reference
 from exercise_compendium import create_exercise_library
 
 exercises = create_exercise_library()
@@ -310,30 +310,36 @@ Lifetime Statistics: **Sets:** {n_sets:,} | **Repetitions:** {n_repetitions:,} |
         fig.update(data=[{"hovertemplate": "Weekday: %{x}<br>Hour: %{y}:00 - %{y}:59<br>Number of Sets: %{z}"}])
         return fig
 
-    # KPI card component
-    def calculate_exercise_volume_progression(df: pd.DataFrame, today, days: int = 30) -> pd.Series:
-        """Calculate volume progression for a given exercise over specified days."""
+    def compare_exercise_metric_periods(
+        df: pd.DataFrame, column: str, agg_func: str, today, days: int = 30
+    ) -> pd.Series:
+        """Calculate progression for a given exercise over specified days."""
+        reference_period = (df.index <= today - pd.Timedelta(days=days)) & (
+            df.index > today - pd.Timedelta(days=days * 2)
+        )
+        current_period = df.index > today - pd.Timedelta(days=days)
+
         return pd.Series(
             {
-                "reference": df[
-                    (df.index <= today - pd.Timedelta(days=days)) & (df.index > today - pd.Timedelta(days=days * 2))
-                ]["Volume"].sum(),
-                "value": df[df.index > today - pd.Timedelta(days=days)]["Volume"].sum(),
+                "reference": getattr(df.loc[reference_period, column], agg_func)(),
+                "value": getattr(df.loc[current_period, column], agg_func)(),
             }
         )
 
-    def apply_to_all_exercises(df: pd.DataFrame, days: int = 30) -> pd.DataFrame:
-        """Apply volume progression calculation to all exercises in the dataframe."""
+    def calculate_exercise_metrics_over_time(
+        df: pd.DataFrame, column: str, agg_func: str, days: int = 30
+    ) -> pd.DataFrame:
+        """Apply progression calculation to all exercises in the dataframe."""
         today = df.index.max()
         return (
             df.groupby("Exercise Name", observed=True)
-            .apply(lambda x: calculate_exercise_volume_progression(x, today, days))
+            .apply(lambda x: compare_exercise_metric_periods(x, column, agg_func, today, days))
             .reset_index()
             .rename(columns={"level_1": "metric"})
         )
 
-    # Assuming df_fitness is your original DataFrame
-    volume_data = apply_to_all_exercises(df_fitness)
+    volume_data = calculate_exercise_metrics_over_time(df_fitness, column="Volume", agg_func="sum")
+    weight_data = calculate_exercise_metrics_over_time(df_fitness, column="Weight [kg]", agg_func="mean")
 
     page = vm.Page(
         title="Exercise Statistics",
@@ -355,32 +361,32 @@ Lifetime Statistics: **Sets:** {n_sets:,} | **Repetitions:** {n_repetitions:,} |
                 figure=kpi_card(
                     df_fitness,
                     "Weight [kg]",
-                    value_format="{value} kg",
+                    value_format="{value:,.0f} kg",
                     agg_func="max",
                     title="Personal Best",
-                    icon="fitness_center",
+                    icon="trophy",
                 )
             ),
             vm.Figure(
-                figure=kpi_card(
-                    df_fitness,
-                    "Repetitions",
-                    value_format="{value:,.0f}",
-                    agg_func="mean",
-                    title="Mean Reps",
-                    icon="repeat",
-                )
-            ),
-            vm.Figure(
-                id="card-exercise-kpi",
                 figure=kpi_card_reference(
-                    data_frame=volume_data,
+                    data_frame=weight_data,
                     value_column="value",
                     reference_column="reference",
                     value_format="{value:,.0f} kg",  # Format as integer with comma separators
                     reference_format="{delta_relative:+.1%} vs. previous 30 days ({reference:,.0f} kg)",
+                    icon="fitness_center",
+                    title="Avg Weight",
+                ),
+            ),
+            vm.Figure(
+                figure=kpi_card_reference(
+                    data_frame=volume_data,
+                    value_column="value",
+                    reference_column="reference",
+                    value_format="{formatted_value}",  # Format as integer with comma separators
+                    reference_format="{delta_relative:+.1%} vs. previous 30 days ({formatted_reference})",
                     icon="show_chart",
-                    title="Volume",
+                    title="Avg Volume",
                 ),
             ),
             vm.Graph(
