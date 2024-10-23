@@ -359,7 +359,7 @@ Compared to the seated version, this standing variation increases core engagemen
             prime_muscles=[Muscle.LATS],
             secondary_muscles=[Muscle.BICEPS, Muscle.REAR_DELTS],
             description="""
-    The assisted pullup allows for performing pullups with assistance, targeting the lats, biceps, and rear delts, and helping users develop upper body pulling strength.""",
+The assisted pullup allows for performing pullups with assistance, targeting the lats, biceps, and rear delts, and helping users develop upper body pulling strength.""",
         ),
         Exercise(
             name="Barbell Bench Press",
@@ -466,7 +466,8 @@ This variation focuses on explosiveness and speed, enhancing power generation an
             prime_muscles=[Muscle.QUADS],
             secondary_muscles=[Muscle.GLUTES, Muscle.HAMSTRINGS],
             is_variation_of="Barbell Squat",
-            description="The barbell power squat is a full-body compound exercise that primarily targets the quads while engaging the glutes and hamstrings, promoting lower body strength and power.",
+            description="""
+The barbell power squat is a full-body compound exercise that primarily targets the quads while engaging the glutes and hamstrings, promoting lower body strength and power.""",
         ),
         Exercise(
             name="Barbell Push Press",
