@@ -361,7 +361,7 @@ Lifetime Statistics: **Sets:** {n_sets:,} | **Repetitions:** {n_repetitions:,} |
                 figure=kpi_card(
                     df_fitness,
                     "Weight [kg]",
-                    value_format="{value:,.0f} kg",
+                    value_format="{value:,g} kg",
                     agg_func="max",
                     title="Personal Best",
                     icon="trophy",

@@ -88,8 +88,8 @@ def kpi_card(
 
 def format_weight(value):
     if value >= 1000:
-        return f"{value/1000:.1f}t"
-    return f"{value:.0f}kg"
+        return f"{value/1000:.1f} t"
+    return f"{value:.0f} kg"
 
 
 @capture("figure")
