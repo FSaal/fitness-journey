@@ -1,8 +1,8 @@
 # Fitness Data Dashboard
 
-![Dashboard Demo](placeholder_for_dashboard_demo.gif)
+![Dashboard Demo](res/gif_main_page.gif)
 
-A comprehensive dashboard for analyzing and visualizing personal fitness data using Plotly Dash.
+A comprehensive dashboard for analyzing and visualizing my personal fitness data using Plotly Dash.
 
 ## Table of Contents
 - [Fitness Data Dashboard](#fitness-data-dashboard)
@@ -16,7 +16,7 @@ A comprehensive dashboard for analyzing and visualizing personal fitness data us
 
 ## About
 
-This project is a Plotly Dash application that processes and visualizes fitness data from various sources, including workout logs and body weight measurements. It provides interactive visualizations and statistics to help users gain insights into their fitness journey.
+This project is a Plotly Dash application that processes and visualizes fitness data from various sources, including workout logs and body weight measurements. It provides interactive visualizations and statistics to help gain insights into my fitness journey.
 
 ## Features
 
@@ -24,8 +24,6 @@ This project is a Plotly Dash application that processes and visualizes fitness 
 - Interactive visualizations of workout progress
 - Body weight trend analysis
 - Exercise-specific statistics and performance metrics
-
-![Feature Showcase](placeholder_for_feature_showcase.gif)
 
 ## Installation
 
@@ -91,9 +89,13 @@ python app_vizro.py
 
 Here are some screenshots of the dashboard in action:
 
-![Exercise Statistics](placeholder_for_exercise_statistics.png)
+![Exercise Statistics](res/screenshot_main_page.png)
 *Exercise Statistics Page*
 
-![Body Weight Trends](placeholder_for_body_weight_trends.png)
-*Body Weight Trends Page*
+![Body Weight Trends](res/screenshot_powerlifting_page.png)
+*Powerlifting Statistics Page*
+
+![Exercise Statistics](res/screenshot_general_statistics.png)
+*General Statistics Page*
+
 
