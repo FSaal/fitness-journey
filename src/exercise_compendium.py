@@ -411,6 +411,19 @@ The barbell deadlift is a fundamental compound exercise primarily targeting the 
 This exercise enhances overall strength, stability, and muscle development in the posterior chain, making it essential for functional fitness.""",
         ),
         Exercise(
+            name="Barbell Deadlift (from Block/rack)",
+            force=Force.PULL,
+            mechanic=Mechanic.COMPOUND,
+            equipment=Equipment.BARBELL,
+            prime_muscles=[Muscle.LOWER_BACK],
+            secondary_muscles=[Muscle.GLUTES, Muscle.HAMSTRINGS],
+            tertiary_muscles=[Muscle.QUADS],
+            is_variation_of="Barbell Deadlift",
+            description="""
+The barbell deadlift from blocks or a rack is a compound movement that reduces the range of motion compared to a conventional deadlift.
+This variation emphasizes the lower back, glutes, and hamstrings while reducing strain on the knees and allowing for heavier lifts.""",
+        ),
+        Exercise(
             name="Barbell Deficit Deadlift",
             force=Force.PULL,
             mechanic=Mechanic.COMPOUND,
@@ -444,6 +457,19 @@ This variation encourages proper posture and core stability, enhancing overall s
             description="""
 The barbell lunge is a compound exercise that targets the quadriceps and glutes effectively.
 It promotes lower body strength, balance, and coordination while engaging the core for stability during movement.""",
+        ),
+        Exercise(
+            name="Barbell Pin Squat",
+            force=Force.PUSH,
+            mechanic=Mechanic.COMPOUND,
+            equipment=Equipment.BARBELL,
+            prime_muscles=[Muscle.QUADS],
+            secondary_muscles=[Muscle.GLUTES],
+            tertiary_muscles=[Muscle.LOWER_BACK],
+            is_variation_of="Barbell Squat",
+            description="""
+The barbell pin squat is a squat variation where the bar starts from pins at a fixed height, emphasizing power output and control.
+This movement strengthens the quads and glutes while improving explosive strength and reducing stress on the lower back.""",
         ),
         Exercise(
             name="Barbell Power Clean",
@@ -627,10 +653,10 @@ The bicycle crunch is a dynamic bodyweight exercise that targets the abs and obl
 The box squat focuses on the quads, glutes, and hamstrings, providing a stable base to enhance form and depth during the squat.""",
         ),
         Exercise(
-            name="Bulgarian Split Squat",
+            name="Dumbbell Bulgarian Split Squat",
             force=Force.PUSH,
             mechanic=Mechanic.COMPOUND,
-            equipment=Equipment.BODY_WEIGHT,
+            equipment=Equipment.DUMBBELL,
             prime_muscles=[Muscle.QUADS],
             secondary_muscles=[Muscle.GLUTES, Muscle.HAMSTRINGS],
             description="""
@@ -1110,6 +1136,17 @@ The dumbbell side raise is an isolation exercise that targets the lateral deltoi
 This movement enhances shoulder strength, stability, and overall upper body aesthetics.""",
         ),
         Exercise(
+            name="Dumbbell Step-up",
+            force=Force.PUSH,
+            mechanic=Mechanic.COMPOUND,
+            equipment=Equipment.DUMBBELL,
+            prime_muscles=[Muscle.QUADS],
+            secondary_muscles=[Muscle.GLUTES, Muscle.HAMSTRINGS],
+            description="""
+The dumbbell step-up is a unilateral lower-body exercise that primarily targets the quads while engaging the glutes and hamstrings.
+This movement improves leg strength, balance, and coordination, making it useful for athletic performance and functional fitness.""",
+        ),
+        Exercise(
             name="Dumbbell Triceps Extension",
             force=Force.PUSH,
             mechanic=Mechanic.ISOLATION,
@@ -1128,6 +1165,16 @@ This movement helps improve arm strength and definition, enhancing performance i
             description="""
 The dumbbell wrist curl is an isolation exercise that primarily targets the forearm muscles, particularly the flexors.
 This movement enhances grip strength and wrist stability, supporting better performance in various upper body exercises.""",
+        ),
+        Exercise(
+            name="Egyptian Lateral Raise",
+            force=Force.PUSH,
+            mechanic=Mechanic.ISOLATION,
+            equipment=Equipment.DUMBBELL,
+            prime_muscles=[Muscle.SHOULDERS],
+            description="""
+The Egyptian lateral raise is an isolation exercise that emphasizes the lateral deltoids by keeping the body stabilized with one hand and allowing for greater range of motion.
+This variation increases shoulder activation and helps develop broader, well-defined shoulders.""",
         ),
         Exercise(
             name="Ez-bar Curl",
@@ -1517,6 +1564,16 @@ The machine thigh abduction targets the hip abductors, improving strength and mo
             prime_muscles=[Muscle.HIP_ADDUCTORS],
             description="""
 The machine thigh adduction targets the inner thigh muscles, helping to strengthen the hip adductors for improved leg stability and coordination.""",
+        ),
+        Exercise(
+            name="Machine Triceps Extension",
+            force=Force.PUSH,
+            mechanic=Mechanic.ISOLATION,
+            equipment=Equipment.MACHINE,
+            prime_muscles=[Muscle.TRICEPS],
+            description="""
+The machine triceps extension is an isolation exercise designed to target the triceps with controlled resistance.
+This movement helps build triceps strength and size while reducing strain on the elbows and shoulders compared to free-weight alternatives.""",
         ),
         Exercise(
             name="Machine V-bar Lat Pulldown",
