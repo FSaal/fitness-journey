@@ -460,6 +460,7 @@ class DataEnricher:
 
         This method performs the following operations:
         1. Adds exercise categories for Muscle Category, Equipment, Mechanic, and Force.
+        1.1. Informs user if any exercises are not in the exercise library
         2. Adds derived columns such as weekday and volume information.
 
         Returns an enriched DataFrame with additional columns for exercise categories and derived metrics.
@@ -467,6 +468,8 @@ class DataEnricher:
         df = df.copy()
         for category_type in [MuscleCategory, Equipment, Mechanic, Force]:
             df = self._add_exercise_category(df, category_type, exercise_library)
+        exercises_not_in_library = "\n".join(sorted(set(df["Exercise Name"]) - set(exercise_library.exercises)))
+        print(f"Warning: Exercises not in exercise library:\n {exercises_not_in_library}\n")
         df = self._add_derived_columns(df)
         return df
 
@@ -488,7 +491,7 @@ class DataEnricher:
             for exercise in category_exercises:
                 exercise_to_category[exercise.name] = category.value.capitalize()
 
-        df[column_name] = df["Exercise Name"].map(exercise_to_category).astype("category")
+        df[column_name] = df["Exercise Name"].map(exercise_to_category).fillna("Unknown").astype("category")
         return df
 
     @staticmethod
