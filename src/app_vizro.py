@@ -21,10 +21,8 @@ warnings.filterwarnings("ignore", category=FutureWarning, module="plotly")
 Vizro(assets_folder="src/assets")
 
 
-def find_newest_progression_file(directory: Path) -> Path:
-    """Find the newest progression app file export in the directory matching the pattern 'YYYY-MM-DD HH/MM/SS.csv'."""
-    pattern = r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\.csv"
-
+def find_newest_file(directory: Path, pattern: str, date_format: str) -> Path:
+    """Find the newest file in a directory based on a date pattern in the filename."""
     newest_file = None
     newest_date = datetime.min
 
@@ -32,7 +30,7 @@ def find_newest_progression_file(directory: Path) -> Path:
         match = re.match(pattern, file.name)
         if match:
             date_str = match.group(1)
-            file_date = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+            file_date = datetime.strptime(date_str, date_format)
             if file_date > newest_date:
                 newest_date = file_date
                 newest_file = file
@@ -68,10 +66,12 @@ def load_data() -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     data_paths = DataPaths(
         # Training data of Android fitness app: Progression - Currently used for logging
-        gym_progression=find_newest_progression_file(Path("data")),
+        gym_progression=find_newest_file(
+            Path("data"), r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\.csv", "%Y-%m-%d %H:%M:%S"
+        ),
         # Training data of iOS fitness app: Gymbook
-        gym_gymbook=Path("data/GymBook-Logs-2023-04-08.csv"),
-        # Body weight measurements from myFitnessPal app
+        gym_gymbook=find_newest_file(Path("data"), r"GymBook-Logs-(\d{4}-\d{2}-\d{2})\.csv", "%Y-%m-%d"),
+        # Old Body weight measurements from myFitnessPal app
         weight_myfitnesspal=Path("data/weight.csv"),
         # Body weight measurements from Eufy scale - Currently used for logging
         weight_eufy=find_newest_weight_file(Path("data")),

@@ -40,7 +40,7 @@ class DataLoader:
         fixed_progression_csv = self.fix_progression_csv(progression_path)
         df_progression = pd.read_csv(fixed_progression_csv, delimiter=",", decimal=".")
         fixed_progression_csv.unlink()
-        df_gymbook = pd.read_csv(gymbook_path, delimiter=";", decimal=",")
+        df_gymbook = pd.read_csv(gymbook_path, decimal=",", encoding="utf-16")
         return df_progression, df_gymbook
 
     def fix_progression_csv(self, input_path: Path) -> Path:
@@ -148,11 +148,11 @@ class DataCleaner:
         df_gymbook = self._remove_unused_columns(
             df_gymbook,
             [
-                "Muskelgruppen (Primäre)",
-                "Muskelgruppen (Sekundäre)",
-                "Satz / Aufwärmsatz / Abkühlungssatz",
-                "Ausgelassen",
-                "Bereich",
+                "Muscle Groups (Primary)",
+                "Muscle Groups (Secondary)",
+                "Set / Warm up set / Cool down set",
+                "Skipped",
+                "Region",
             ],
         )
         # Time is workout start time and the same for all sets of the day, Set Duration is only used for cardio exercises
@@ -163,7 +163,7 @@ class DataCleaner:
     @staticmethod
     def _filter_active_sets(df: pd.DataFrame) -> pd.DataFrame:
         """Remove skipped sets from the dataFrame (they were still logged by the gymbook app)."""
-        return df[df["Ausgelassen"] != "Ja"]
+        return df[df["Skipped"] != "Yes"]
 
     @staticmethod
     def _remove_unused_columns(df: pd.DataFrame, additional_columns: Optional[List[str]] = None) -> pd.DataFrame:
@@ -350,7 +350,7 @@ class DataHarmonizer:
         """
         df_gymbook = self._standardize_gymbook_data(df_gymbook)
         df_progression = self._combine_date_time_columns(df_progression, "%Y-%m-%d %H:%M:%S")
-        df_gymbook = self._combine_date_time_columns(df_gymbook, "%d.%m.%Y %H:%M")
+        df_gymbook = self._combine_date_time_columns(df_gymbook, "%d.%m.%y %H:%M")
         df_progression["Set Order"] += 1
         df_gymbook = self._add_gymbook_metadata(df_gymbook)
         # Combine data sets
@@ -367,13 +367,12 @@ class DataHarmonizer:
     def _standardize_gymbook_columns(df: pd.DataFrame) -> pd.DataFrame:
         """Rename gymbook columns to match naming convention of progression app."""
         column_name_mapping = {
-            "Datum": "Date",
-            "Training": "Workout Name",
-            "Zeit": "Set Timestamp",
-            "Übung": "Exercise Name",
-            "Wiederholungen / Zeit": "Repetitions",
-            "Gewicht / Strecke": "Weight",
-            "Notizen": "Set Comment",
+            "Workout": "Workout Name",
+            "Time": "Set Timestamp",
+            "Exercise": "Exercise Name",
+            "Repetitions / Time": "Repetitions",
+            "Weight / Distance": "Weight",
+            "Notes": "Set Comment",
         }
         return df.rename(columns=column_name_mapping)
 
